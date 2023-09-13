@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from __init__ import data_root
 from data.data_encoders import LatLongScalarEnc, DatetimeScalarEnc, CategoricalOrdinalEnc, ScalarRobustScalerEnc, \
     TfidfEnc, ScalarPowerTransformerEnc, \
-    ScalarQuantileTransformerEnc, TextSummaryScalarEnc, ScalarQuantileOrdinalEnc
+    ScalarQuantileTransformerEnc, TextSummaryScalarEnc, ScalarQuantileOrdinalEnc, TextEmbeddingsEnc
 from data.utils import get_db_info
 
 
@@ -63,6 +63,9 @@ class DatabaseDataset(Dataset):
                     elif t_enc == 'TextSummaryScalarEnc':
                         enc = TextSummaryScalarEnc(feature_info['RobustScaler_center_'],
                                                    feature_info['RobustScaler_scale_'])
+                    # LK
+                    elif t_enc == 'TextEmbeddingsEnc':
+                        enc = TextEmbeddingsEnc(feature_info['Text_embeddings_'])
                 self.feature_encoders[node_type][feature_name] = enc
 
     def __len__(self):
