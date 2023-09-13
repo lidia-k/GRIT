@@ -1,4 +1,7 @@
+import base64
 import os
+import sys
+import pickle
 from datetime import datetime
 
 from experiments.utils import run_script_with_kwargs
@@ -17,7 +20,8 @@ def get_kwargs(db_name):
     p_dropout = 0.5
     scalar_enc = 'ScalarRobustScalerEnc'  # ScalarRobustScalerEnc ScalarQuantileOrdinalEnc
     datetime_enc = 'DatetimeScalarEnc'  # DatetimeScalarEnc DatetimeOrdinalEnc
-    text_enc = 'TextSummaryScalarEnc'  # TextSummaryScalarEnc TfidfEnc
+    # LK
+    text_enc = 'TextSummaryScalarEnc'  # TextSummaryScalarEnc TfidfEnc TextEmbeddingsEnc
     one_hot_embeddings = True
     readout = 'avg'
     norm = 'batchnorm'
@@ -155,28 +159,35 @@ def get_kwargs(db_name):
 
 
 if __name__ == '__main__':
-    for db_name in db_names:
-        experiment_slug = datetime.now().strftime('%b%d_%H-%M-%S-%f')
-        for train_test_split in [
-            'use_full_train',
-            'xval0',
-            'xval1',
-            'xval2',
-            'xval3',
-            'xval4'
-        ]:
-            kwargs = get_kwargs(db_name)
-            kwargs['log_dir'] = os.path.join('GNN',
-                                             db_name,
-                                             model_class_name,
-                                             experiment_slug,
-                                             train_test_split)
-            kwargs['train_test_split'] = train_test_split
-            session_name = '_'.join([db_name, model_class_name, experiment_slug, train_test_split])
-            run_script_with_kwargs('start_training',
-                                   kwargs,
-                                   session_name,
-                                   locale='local_tmux',
-                                   n_gpu=1,
-                                   n_cpu=kwargs['num_workers'],
-                                   mb_memory=60000)  # this is the memory on a p3.2xlarge
+    db_name = 'kddcup2014'
+
+    experiment_slug = datetime.now().strftime('%b%d_%H-%M-%S-%f')
+    for train_test_split in [
+        'use_full_train',
+        'xval0',
+        'xval1',
+        'xval2',
+        'xval3',
+        'xval4'
+    ]:
+        kwargs = get_kwargs(db_name)
+        kwargs['log_dir'] = os.path.join('GNN',
+                                            db_name,
+                                            model_class_name,
+                                            experiment_slug,
+                                            train_test_split)
+        kwargs['train_test_split'] = train_test_split
+        session_name = '_'.join([db_name, model_class_name, experiment_slug, train_test_split])
+        # LK
+        script_path = '/Users/lidia/Supervised-Learning-on-Relational-Databases-with-GNNs/start_training.py'
+        script_command = f'sudo {sys.executable} {script_path} {base64.b64encode(pickle.dumps(kwargs)).decode()}'
+        os.system(script_command)
+        """
+        run_script_with_kwargs('start_training',
+                                kwargs,
+                                session_name,
+                                locale='local_tmux',
+                                #n_gpu=1,
+                                n_cpu=kwargs['num_workers'],
+                                mb_memory=60000)  # this is the memory on a p3.2xlarge
+        """
