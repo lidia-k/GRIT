@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from __init__ import project_root, data_root
 from data.data_encoders import ScalarRobustScalerEnc, ScalarPowerTransformerEnc, ScalarQuantileTransformerEnc, \
-    ScalarQuantileOrdinalEnc, TextSummaryScalarEnc, TfidfEnc
+    ScalarQuantileOrdinalEnc, TextSummaryScalarEnc, TfidfEnc, TextEmbeddingsEnc
 
 
 def populate_db_info(db_name, db_info):
@@ -73,14 +73,15 @@ def populate_db_info(db_name, db_info):
                     def rec_val_generator(generator):
                         while True:
                             try:
-                                n = generator.__next__().value()
+                                n = generator.__next__()
                                 yield n if n else ''
                             except StopIteration:
                                 return
 
                     query = 'MATCH (n:{0}) RETURN n.{1} ;'.format(node_type, feature_name)
                     print('running: {}'.format(query))
-                    text_strings = session.run(query).records()
+
+                    text_strings = session.run(query).value().__iter__()
                     text_strings = pd.Series(rec_val_generator(text_strings))
 
                     enc = TextSummaryScalarEnc()
@@ -94,6 +95,15 @@ def populate_db_info(db_name, db_info):
                     vocabulary_ = {k: int(v) for k, v in tfidf.vocabulary_.items()}
                     feature_info['Tfidf_vocabulary_'] = vocabulary_
                     feature_info['Tfidf_idf_'] = tfidf.idf_.tolist()
+                    
+                    # LK
+                    embeddings_output = []
+                    text_embedder = TextEmbeddingsEnc()
+                    for text in text_strings:
+                        embeddings = text_embedder.embed(text)
+                        embeddings_output.append(embeddings)
+
+                    feature_info['Text_embeddings_'] = embeddings_output
 
                 if '+++' in feature_name:
                     feature_name = feature_name.split('+++')[0]
