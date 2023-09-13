@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from gpt4all import GPT4All, Embed4All
 from neotime import Date
 from pandas import DataFrame
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -616,3 +617,10 @@ def add_cyclic_datepart(df: DataFrame, field_name: str, prefix: str = None, drop
     df = pd.concat([df, df_feats], axis=1)
     if drop: df.drop(field_name, axis=1, inplace=True)
     return df
+
+
+class TextEmbeddingsEnc:
+    def embed(self, text):
+        embedder = Embed4All()
+        output = embedder.embed(text)
+        return output 
