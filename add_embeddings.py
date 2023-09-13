@@ -1,4 +1,5 @@
 import json
+import os
 import time 
 
 import pandas as pd
@@ -15,7 +16,7 @@ def rec_val_generator(generator):
         except StopIteration:
             return
 
-file_path = '/Users/lidia/Supervised-Learning-on-Relational-Databases-with-GNNs/data/kddcup2014/kddcup2014.db_info.json'
+file_path = os.path.join(os.getcwd(), 'data/kddcup2014/kddcup2014.db_info.json')
 with open(file_path, 'r') as f:
     data = json.load(f)
 
