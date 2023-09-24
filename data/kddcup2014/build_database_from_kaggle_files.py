@@ -12,10 +12,10 @@ def build_database_from_kaggle_files():
     local_essays_dir = os.path.join(data_root, 'raw_data', db_name)
     local_essays_path = os.path.join(local_essays_dir, 'essays.csv')
     subprocess.run('unzip \'{dir}/*.zip\' -d {dir} '.format(dir=local_essays_dir), shell=True)
-    subprocess.run('sed -i \'s/\\\\\\\\""//g\' {}'.format(local_essays_path), shell=True)
-    subprocess.run('sed -i \'s/\\\\""//g\' {}'.format(local_essays_path), shell=True)
-    subprocess.run('sed -i \'s/\\\\",/",/g\' {}'.format(local_essays_path), shell=True)
-    subprocess.run('sed -i \'s/\\\\"$/"/g\' {}'.format(local_essays_path), shell=True)
+    subprocess.run('sed -i "" \'s/\\\\\\\\""//g\' {}'.format(local_essays_path), shell=True)
+    subprocess.run('sed -i "" \'s/\\\\""//g\' {}'.format(local_essays_path), shell=True)
+    subprocess.run('sed -i "" \'s/\\\\",/",/g\' {}'.format(local_essays_path), shell=True)
+    subprocess.run('sed -i "" \'s/\\\\"$/"/g\' {}'.format(local_essays_path), shell=True)
 
     container_id = get_db_container(db_name)
     cmd = 'docker exec -i {} cypher-shell < {}'.format(container_id,
