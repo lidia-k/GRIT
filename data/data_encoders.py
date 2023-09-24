@@ -12,6 +12,7 @@ import torch.nn as nn
 from gpt4all import GPT4All, Embed4All
 from neotime import Date
 from pandas import DataFrame
+from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import RobustScaler, PowerTransformer, QuantileTransformer, KBinsDiscretizer
 from typing import List, Union, Iterable
@@ -620,7 +621,25 @@ def add_cyclic_datepart(df: DataFrame, field_name: str, prefix: str = None, drop
 
 
 class TextEmbeddingsEnc:
+    def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2'):
+        try: 
+            self.model = SentenceTransformer(model_name)
+        except Exception as e:
+            print(f"Failed to load model: {e}")
+            self.model = None
+
     def embed(self, text):
-        embedder = Embed4All()
-        output = embedder.embed(text)
-        return output 
+        if not self.model:
+            print("Model not loaded.")
+            return None
+
+        if not text:
+            print("Input text is empty.")
+            return None
+        
+        try: 
+            embeddings = self.model.encode(text)
+            return embeddings
+        except Exception as e:
+            print(f"Failed to generate embeddings: {e}")
+            return None

@@ -34,14 +34,17 @@ with driver.session() as session:
         text_strings = pd.Series(rec_val_generator(text_strings))
 
         output = []
-        for text in text_strings:
+        batch_size = 32
+        for start_idx in range(0, len(text_strings), batch_size):
+            end_idx = start_idx + batch_size 
+            text_batch = text_strings[start_idx:end_idx]
+
             start_time = time.time()
-
-            embeddings = text_embedder.embed(text)
-            output.append(embeddings)
-
+            embeddings = text_embedder.embed(text_batch.tolist())
             end_time = time.time()
             print(f'{end_time - start_time}')
+
+            output.append(embeddings)
 
         essay_features[feature]['Text_embeddings_'] = output
 
