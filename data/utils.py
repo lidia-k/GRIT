@@ -96,11 +96,13 @@ def populate_db_info(db_name, db_info):
                     feature_info['Tfidf_vocabulary_'] = vocabulary_
                     feature_info['Tfidf_idf_'] = tfidf.idf_.tolist()
                     
-                    # LK
-                    embeddings_output = []
                     text_embedder = TextEmbeddingsEnc()
-                    for text in text_strings:
-                        embeddings = text_embedder.embed(text)
+                    embeddings_output = []
+                    batch_size = 32
+                    for start_idx in range(0, len(text_strings), batch_size):
+                        end_idx = start_idx + batch_size 
+                        text_batch = text_strings[start_idx:end_idx]
+                        embeddings = text_embedder.embed(text_batch.tolist())
                         embeddings_output.append(embeddings)
 
                     feature_info['Text_embeddings_'] = embeddings_output
