@@ -103,7 +103,7 @@ def populate_db_info(db_name, db_info):
                         end_idx = start_idx + batch_size 
                         text_batch = text_strings[start_idx:end_idx]
                         embeddings = text_embedder.embed(text_batch.tolist())
-                        embeddings_output.append(embeddings)
+                        embeddings_output.extend(embeddings.tolist())
 
                     feature_info['Text_embeddings_'] = embeddings_output
 
