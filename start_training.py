@@ -1,17 +1,12 @@
-import base64
-import json
-import os
-import pickle
-import pprint
-import sys
+#a adds val_loader to print result mid-epoch
 
-import lightgbm as lgb
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+import base64, json, os, pickle, pprint, sys, pdb #sn adds pdb
+
+import lightgbm as lgb; import numpy as np; import pandas as pd
 import seaborn as sns
 import torch
 import torch.optim as opt
+import matplotlib.pyplot as plt
 from pathlib import Path
 from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix, log_loss, accuracy_score
 from torch.optim.lr_scheduler import CyclicLR, OneCycleLR, ExponentialLR, CosineAnnealingWarmRestarts, ReduceLROnPlateau
@@ -22,22 +17,34 @@ from data.DatabaseDataset import DatabaseDataset
 from data.TabularDataset import TabularDataset
 from data.utils import write_kaggle_submission_file
 from models.GNN.GNNModelBase import GNNModelBase
+from models.GNN.PoolMLP import PoolMLP  #sn new line
+from dgl import DGLGraph as BatchedDGLGraph      #sn new line
 from models.tabular.TabModelBase import TabModelBase
-from models.utils import save_train_kwargs, recursive_to, save_model_checkpoint, get_good_lr, register_module_hooks
-from utils import setup_writer, get_train_val_test_datasets, get_dataloader, log_param_values, \
-    format_hparam_dict_for_tb, model_to_device, get_optim_with_correct_wd
+from models.utils import save_train_kwargs  #sn: crashes here
+from models.utils import recursive_to
+from models.utils import save_model_checkpoint
+from models.utils import get_good_lr
+from models.utils import register_module_hooks
 
+#sn sys.path.append('/250g/home/snguyen/norm/mwcvitkovic/grandbgit')
+from utils import setup_writer
+from utils import get_train_val_test_datasets
+from utils import get_dataloader
+from utils import log_param_values
+from utils import format_hparam_dict_for_tb, model_to_device, get_optim_with_correct_wd
 
-def train_epoch(writer, train_loader, model, optimizer, scheduler, epoch):
+def train_epoch(writer, train_loader, model, optimizer, scheduler, epoch, val_loader): #a
     model.train()
     writer.batches_done = epoch * len(train_loader)
     # t = time.perf_counter()
-    for batch_idx, (input, label) in enumerate(tqdm(train_loader)):
+    for batch_idx, (input, label) in enumerate(train_loader): #sn was:    for batch_idx, (input, label) in enumerate(tqdm(train_loader)):
+        print( "batch = ", writer.batches_done ) #sn
         if batch_idx == 0:
             writer.add_scalar('Training/Learning Rate', optimizer.param_groups[0]['lr'], writer.batches_done)
         # writer.add_scalar('CodeProfiling/Train/Batch Size', bdgl.number_of_nodes(), writer.batches_done)
         # writer.add_scalar('CodeProfiling/Train/Get Batch Time', time.perf_counter() - t, writer.batches_done)
         # t = time.perf_counter()
+        input[1]['Essay'][1] = 10 * input[1]['Essay'][1]
         recursive_to((input, label), model.device)
         optimizer.zero_grad()
         # writer.add_scalar('CodeProfiling/Train/Load to GPU Time', time.perf_counter() - t, writer.batches_done)
@@ -63,8 +70,8 @@ def train_epoch(writer, train_loader, model, optimizer, scheduler, epoch):
         # writer.add_scalar('CodeProfiling/Other stuff Time', time.perf_counter() - t, writer.batches_done)
         # t = time.perf_counter()
         log_param_values(writer, model)
-        if isinstance(scheduler, (CyclicLR, OneCycleLR)):
-            scheduler.step()
+        if isinstance(scheduler, (CyclicLR, OneCycleLR)): scheduler.step()
+        if batch_idx % 100 == 0:  validate_model( writer, val_loader, model, epoch ) #sn new line
     if isinstance(scheduler, (ExponentialLR, CosineAnnealingWarmRestarts)):
         scheduler.step()
 
@@ -76,8 +83,9 @@ def validate_model(writer, val_loader, model, epoch):
         n_correct = torch.Tensor([0])
         labels = []
         probs = []
-        for batch_idx, (input, label) in enumerate(tqdm(val_loader)):
+        for batch_idx, (input, label) in enumerate(val_loader):  #sn was: enumerate(tqdm(val_loader)):
             recursive_to((input, label), model.device)
+#            pdb.set_trace()  #sn
             output = model(input)
             val_loss += model.loss_fxn(output, label).cpu()  # sum up mean batch losses
             if isinstance(output, torch.Tensor):
@@ -85,27 +93,20 @@ def validate_model(writer, val_loader, model, epoch):
                 pred = model.pred_from_output(output)
                 n_correct += pred.eq(label.view_as(pred)).sum().cpu()
                 labels.append(label.cpu())
-
-        val_loss = (val_loss.cpu() / len(val_loader)).item()
+        val_loss      = (val_loss.cpu() / len(val_loader)).item()
         writer.add_scalar('Validation/{}'.format(model.loss_fxn.__class__.__name__), val_loss, writer.batches_done)
-        print(f'val_loss epoch {epoch}: {val_loss}')
-
+        print(        f'val_loss epoch {epoch}: {val_loss}')
         if isinstance(output, torch.Tensor):
-            labels = torch.cat(labels, dim=0).cpu().numpy()
-            probs = torch.cat(probs, dim=0).cpu().numpy()
-
-            val_acc = (100 * n_correct / len(val_loader.dataset)).item()
+            labels    = torch.cat(labels, dim=0).cpu().numpy()
+            probs     = torch.cat(probs, dim=0).cpu().numpy()
+            val_acc   = (100 * n_correct / len(val_loader.dataset)).item()
             writer.add_scalar('Validation/Accuracy', val_acc, writer.batches_done)
-            print(f'val_acc epoch {epoch}: {val_acc}')
-
+            print(    f'val_acc epoch {epoch}: {val_acc}')
             val_auroc = roc_auc_score(labels, probs[:, 1])
             writer.add_scalar('Validation/AUROC Score', val_auroc, writer.batches_done)
-            print(f'val_auroc epoch {epoch}: {val_auroc}')
-
-            plot_validation_info(writer, labels, probs)
-        else:
-            val_auroc = val_acc = None
-
+            print(    f'val_auroc epoch {epoch}: {val_auroc}')
+#sn         plot_validation_info(writer, labels, probs)
+        else:         val_auroc = val_acc = None
         return val_auroc, val_acc, val_loss
 
 
@@ -164,48 +165,43 @@ def plot_validation_info(writer, labels, probs):
     plt.yticks((0, 0.5, 0.5, 1.5, 2.0), ('', 0, '', 1, ''))  # dumb hack for weird sns plotting
     writer.add_figure('Validation/Confusion Matrix', plt.gcf(), writer.batches_done)
 
+'''-----------------------------------------------------------------------------
+val_data[i]:                         xd[i][1]
+              |---------------------------------------------------------|
+('01f...f08', ( [(1,0)..(0,2)], [0,..1], [3,..1], { p e r rt }, False ) ) <-- ith datapoint
+ |---------|    |------------|  |-----|  |-----|  |----------|  |---|
+^  xd[i][0]        xd[i][1][0]                                   xd[i][1][4]
+|
+val_data [i]       [1]            [4]  <-- item [4] of tuple = is_exciting
+          ^         ^              ^       item [3]= perrt
+          |         |              |       item [2],[1],[0]  are graph nodes & edges?
+   ith datapoint  0 = project id   tuple
+                  1 = tuple of features
 
+xd   = val_data, test_data, train_data.  all 3 have the same data structure
+pert = { project:{..}, essay:{..}, resource:{..}, rt:{..} }
+-----------------------------------------------------------------------------'''
 def train_model(
-        writer,
-        seed,
-        log_dir,
-        debug_network,
-        dataset_name,
-        train_test_split,
-        encoders,
-        max_nodes_per_graph,
-        train_fraction_to_use,
-        sampler_class_name,
-        sampler_class_kwargs,
-        model_class_name,
-        model_kwargs,
-        batch_size,
-        epochs,
-        optimizer_class_name,
-        optimizer_kwargs,
-        lr_scheduler_class_name,
-        lr_scheduler_kwargs,
-        early_stopping_patience,
-        wd_bias,
-        wd_embed,
-        wd_bn,
-        load_model_weights_from='',
-        early_stopping_metric='loss',
-        device='cpu',
-        num_workers=0,
-        find_lr=True):
-    train_data, val_data, _ = get_train_val_test_datasets(dataset_name=dataset_name,
-                                                          train_test_split=train_test_split,
-                                                          encoders=encoders,
-                                                          train_fraction_to_use=train_fraction_to_use)
+    writer, seed, log_dir, debug_network, dataset_name, train_test_split
+    , encoders, max_nodes_per_graph, train_fraction_to_use, sampler_class_name
+    , sampler_class_kwargs, model_class_name, model_kwargs, batch_size, epochs
+    , optimizer_class_name, optimizer_kwargs, lr_scheduler_class_name
+    , lr_scheduler_kwargs, early_stopping_patience, wd_bias, wd_embed, wd_bn
+    , load_model_weights_from='', early_stopping_metric='loss', device='cpu'
+    , num_workers=0, find_lr=True):
+    train_data, val_data, _ = get_train_val_test_datasets( dataset_name=dataset_name
+    ,  train_test_split=train_test_split, encoders=encoders
+    ,  train_fraction_to_use=train_fraction_to_use)
     train_loader = get_dataloader(dataset=train_data,
                                   batch_size=batch_size,
                                   sampler_class_name=sampler_class_name,
                                   sampler_class_kwargs=sampler_class_kwargs,
                                   num_workers=num_workers,
                                   max_nodes_per_graph=max_nodes_per_graph)
+    print(f'# of datapoints        : {len(train_loader) * batch_size}')      #sn
+    print(f'batch size             : {batch_size}')                          #sn
     print(f'Batches per train epoch: {len(train_loader)}')
-    print(f'Total batches: {len(train_loader) * epochs}')
+    print(f'Total batches          : {len(train_loader) * epochs}')
     val_loader = get_dataloader(dataset=val_data,
                                 batch_size=batch_size,
                                 sampler_class_name='SequentialSampler',
@@ -227,9 +223,7 @@ def train_model(
             )
         else:
             raise ValueError
-        model = model_class(writer=writer,
-                            dataset_name=dataset_name,
-                            **model_kwargs)
+        model = model_class( writer=writer, dataset_name=dataset_name, **model_kwargs )
         if load_model_weights_from:
             state_dict = torch.load(load_model_weights_from, map_location=torch.device('cpu'))
             retval = model.load_state_dict(state_dict['model'], strict=False)
@@ -240,8 +234,8 @@ def train_model(
         # If debugging, add hooks to all modules
         if debug_network:
             register_module_hooks('model', model, writer)
-
         return model
+    # end inlined init_model()
 
     # Optionally find good learning rate
     if find_lr:
@@ -268,7 +262,7 @@ def train_model(
     best_loss = np.inf
     best_epoch = -1
     try:
-        for epoch in tqdm(range(epochs)):
+        for epoch in range(epochs):  #sn was: for epoch in tqdm(range(epochs)):
             print(f'Epoch: {epoch}')
             log_param_values(writer, model)
             if epoch % 20 == 0:
@@ -278,48 +272,37 @@ def train_model(
             if val_auroc is not None and val_auroc > best_auroc:
                 best_auroc = val_auroc
                 save_model_checkpoint(writer, epoch, model, optimizer, scheduler, chkpt_name='best_auroc')
-                if early_stopping_metric == 'auroc':
-                    best = True
+                if early_stopping_metric == 'auroc': best = True
             if val_acc is not None and val_acc > best_acc:
                 best_acc = val_acc
                 save_model_checkpoint(writer, epoch, model, optimizer, scheduler, chkpt_name='best_acc')
-                if early_stopping_metric == 'acc':
-                    best = True
+                if early_stopping_metric == 'acc': best = True
             if val_loss < best_loss:
                 best_loss = val_loss
                 save_model_checkpoint(writer, epoch, model, optimizer, scheduler, chkpt_name='best_loss')
-                if early_stopping_metric == 'loss':
-                    best = True
-            if early_stopping_metric == 'auroc':
-                m = val_auroc
-            elif early_stopping_metric == 'acc':
-                m = val_acc
-            elif early_stopping_metric == 'loss':
-                m = -1 * val_loss
-            if isinstance(scheduler, ReduceLROnPlateau):
-                scheduler.step(m)
-            if best:
-                best_epoch = epoch
+                if early_stopping_metric == 'loss': best = True
+            if early_stopping_metric    == 'auroc': m = val_auroc
+            elif early_stopping_metric  == 'acc'  : m = val_acc
+            elif early_stopping_metric  == 'loss' :  m = -1 * val_loss
+            if isinstance(scheduler, ReduceLROnPlateau): scheduler.step(m)
+            if best:                best_epoch = epoch
             if epoch - best_epoch >= early_stopping_patience:
                 Path(os.path.join(writer.log_dir, 'stopped_early.info')).touch()
                 break
-            train_epoch(writer, train_loader, model, optimizer, scheduler, epoch)
-            if hasattr(model, 'prune'):
-                model.prune(epoch, m)
+            train_epoch(writer, train_loader, model, optimizer, scheduler, epoch, val_loader)  #a
+            if hasattr(model, 'prune'):  model.prune(epoch, m)
         else:
             save_model_checkpoint(writer, epoch, model, optimizer, scheduler)
             validate_model(writer, val_loader, model, epoch)
             Path(os.path.join(writer.log_dir, 'finished_all_epochs.info')).touch()
-        writer.add_hparams(format_hparam_dict_for_tb(writer.train_kwargs), {'hparam/best_auroc': best_auroc,
-                                                                            'hparam/best_acc': best_acc,
-                                                                            'hparam/best_loss': best_loss,
-                                                                            'hparam/best_epoch': best_epoch})
+        writer.add_hparams( format_hparam_dict_for_tb(writer.train_kwargs)
+        ,  {'hparam/best_auroc': best_auroc, 'hparam/best_acc': best_acc
+        ,   'hparam/best_loss' : best_loss , 'hparam/best_epoch': best_epoch})
     except Exception as e:
         Path(os.path.join(writer.log_dir, 'failed.info')).touch()
-        writer.add_hparams(format_hparam_dict_for_tb(writer.train_kwargs), {'hparam/best_auroc': best_auroc,
-                                                                            'hparam/best_acc': best_acc,
-                                                                            'hparam/best_loss': best_loss,
-                                                                            'hparam/best_epoch': best_epoch})
+        writer.add_hparams( format_hparam_dict_for_tb(writer.train_kwargs)
+        ,  {'hparam/best_auroc': best_auroc, 'hparam/best_acc': best_acc
+        ,   'hparam/best_loss': best_loss,   'hparam/best_epoch': best_epoch})
         raise e
 
 
@@ -386,7 +369,7 @@ def train_non_deep_model(writer,
                        num_iteration=bst.best_iteration)
         val_probs = bst.predict(raw_val_data, num_iteration=bst.best_iteration)
         val_probs = np.vstack([1 - val_probs, val_probs]).T
-        plot_validation_info(writer, val_data.label, val_probs)
+#       plot_validation_info(writer, val_data.label, val_probs)   #sn removed because it's spitting out too many warnings
         writer.add_hparams(format_hparam_dict_for_tb(writer.train_kwargs),
                            {'hparam/best_auroc': bst.best_score['valid_0']['auc'],
                             'hparam/best_acc': 100 * (1 - bst.best_score['valid_0']['binary_error']),
@@ -426,10 +409,8 @@ def train_non_deep_model(writer,
 def main(kwargs):
     # Workaround for pytorch large-scale multiprocessing issue, if you're using a lot of dataloaders
     # torch.multiprocessing.set_sharing_strategy('file_system')
-
     torch.manual_seed(kwargs['seed'])
     np.random.seed(kwargs['seed'])
-
     writer = setup_writer(kwargs['log_dir'], kwargs['debug_network'])
     save_train_kwargs(writer, kwargs)
     writer.add_text('train_kwargs', pprint.pformat(kwargs).replace('\n', '\t\n'))
@@ -438,12 +419,54 @@ def main(kwargs):
     if kwargs['model_class_name'] == 'LightGBM':
         train_non_deep_model(writer, **kwargs)
     else:
+        print( "start_training.py.  pre train_model() " ) #sn
         train_model(writer, **kwargs)
 
-
+#sn kwargs:  set num_worker = 0.  default was 8.  hopefully 0 uses single process dataloader, making it easier to debug.
+#   https://pytorch.org/docs/stable/data.html#single-and-multi-process-data-loading
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        kwargs = dict()
+  if len(sys.argv) == 1:
+    kwargs = dict()
+
+    #sn kwargs from experiments/GNN/GCN.py   
+    kwargs = {'seed': 1234, 'debug_network': False, 'encoders': {'VECTOR':'String2TensorEnc', 'CATEGORICAL': 'CategoricalOrdinalEnc', 'SCALAR': 'ScalarRobustScalerEnc', 'DATETIME': 'DatetimeScalarEnc', 'LATLONG': 'LatLongScalarEnc', 'TEXT': 'TextSummaryScalarEnc'}, 'early_stopping_patience': 50, 'early_stopping_metric': 'auroc', 'max_nodes_per_graph': 50000, 'train_fraction_to_use': 1.0, 'dataset_name': 'kddcup2014', 'device': 'cuda', 'find_lr': False, 'epochs': 20, 'batch_size': 200, 'num_workers': 0, 'lr_scheduler_class_name': 'StepLR', 'lr_scheduler_kwargs': {'step_size': 1, 'gamma': 1.0}, 'optimizer_class_name': 'AdamW', 'optimizer_kwargs': {'lr': 0.0001, 'weight_decay': 0.0}, 'wd_bias': False, 'wd_embed': False, 'wd_bn': False, 'sampler_class_name': 'RandomSampler', 'sampler_class_kwargs': {}, 'model_class_name': 'GCN', 'model_kwargs': {'hidden_dim': 128, 'init_model_class_name': 'TabMLP', 'init_model_kwargs': {'layer_sizes': [4.0], 'max_emb_dim': 32, 'p_dropout': 0.5, 'one_hot_embeddings': False, 'drop_whole_embeddings': False, 'norm_class_name': 'Identity', 'norm_class_kwargs': {}, 'activation_class_name': 'SELU', 'activation_class_kwargs': {}}, 'p_dropout': 0.5, 'n_layers': 1, 'activation_class_name': 'SELU', 'activation_class_kwargs': {}, 'norm_class_name': 'Identity', 'norm_class_kwargs': {}, 'loss_class_name': 'CrossEntropyLoss', 'loss_class_kwargs': {'weight': None}, 'fcout_layer_sizes': [], 'readout_class_name': 'GlobalAttentionPooling', 'readout_kwargs': {'n_layers': 2, 'act_name': 'SELU'}}, 'log_dir': 'kddcup2014/GCN/Nov20_09-05-08-586684/use_full_train', 'train_test_split': 'use_full_train'}  #sn adds
+
+    import time; timestamp = time.strftime("%Y%m%d-%H%M%S"); #sn added
+    kwargs['log_dir'] = os.getcwd() + '/runs/' + kwargs['dataset_name'] + '/' + kwargs['model_class_name']  #sn
+    os.system( 'rm -r ' + kwargs['log_dir'] )  #sn
+    #sn added kwargs dictionary
+    '''
+    kwargs = { 'seed': 1234, 'debug_network': False
+    , 'encoders': {'CATEGORICAL': 'CategoricalOrdinalEnc', 'SCALAR': 'ScalarRobustScalerEnc'
+    ,   'DATETIME': 'DatetimeScalarEnc', 'LATLONG': 'LatLongScalarEnc'
+    ,   'TEXT': 'TextSummaryScalarEnc', 'VECTOR': 'String2TensorEnc' }  #sn added VECTOR
+    , 'num_workers': 0, 'model_class_name': 'PoolMLP', 'batch_size': 1024
+    , 'early_stopping_patience': 100, 'early_stopping_metric': 'auroc'
+    , 'max_nodes_per_graph': False, 'train_fraction_to_use': 1.0
+    , 'dataset_name': 'kddcup2014', 'device': 'cuda', 'find_lr': False, 'epochs': 20
+    , 'lr_scheduler_class_name': 'StepLR', 'lr_scheduler_kwargs': {'step_size': 1, 'gamma': 1.0}
+    , 'optimizer_class_name': 'AdamW', 'optimizer_kwargs': {'lr': 0.0001, 'weight_decay': 0.0}
+    , 'wd_bias': False, 'wd_embed': False, 'wd_bn': False
+    , 'sampler_class_name': 'RandomSampler', 'sampler_class_kwargs': {}
+    , 'model_kwargs':                                                       { 
+        'hidden_dim': 1024, 'init_model_class_name': 'TabMLP',
+        'init_model_kwargs':                                                { 
+          'layer_sizes': [4.0], 'max_emb_dim': 32, 'p_dropout': 0.5
+          , 'one_hot_embeddings': True, 'drop_whole_embeddings': False
+          , 'norm_class_name': 'BatchNorm1d', 'norm_class_kwargs': {}
+          , 'activation_class_name': 'SELU', 'activation_class_kwargs': {}  }
+        , 'activation_class_name': 'SELU', 'activation_class_kwargs': {}
+        , 'norm_class_name': 'BatchNorm1d', 'norm_class_kwargs': {}
+        , 'loss_class_name': 'CrossEntropyLoss', 'loss_class_kwargs': {'weight': None}
+        , 'p_dropout': 0.5, 'fcout_layer_sizes': [1.0], 'readout_class_name': 'AvgPooling'
+        , 'readout_kwargs': {}                                             }
+    , 'log_dir': 'GNN/kddcup2014/PoolMLP/' + timestamp + '/use_full_train'
+    , 'train_test_split': 'use_full_train' }  #sn
+    '''
+  else:
+    kwargs = pickle.loads( base64.b64decode( sys.argv[1] ) )
+  main(kwargs)
+
         # # This is here as an example:
         # kwargs = {
         #     "seed": 1234,
@@ -501,6 +524,3 @@ if __name__ == '__main__':
         #     "load_model_weights_from": "",
         #     "log_dir": "debug"
         # }
-    else:
-        kwargs = pickle.loads(base64.b64decode(sys.argv[1]))
-    main(kwargs)
