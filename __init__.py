@@ -1,7 +1,5 @@
 import os
-
 from pathlib import Path
-
 username = 'ubuntu'
 project_root = os.path.dirname(__file__)
-data_root = os.path.join(str(Path.home()), 'RDB_data')
+data_root = os.path.join(str(Path.home()), 'RDB_data')  #sn alternatively, '/250g/big/data/mwcvitkovic'

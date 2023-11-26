@@ -1,15 +1,15 @@
-import os
+import os, pdb   #sn added pdb
 import pickle
 
 import numpy as np
 from torch.utils.data import Dataset
 
 from __init__ import data_root
-from data.data_encoders import LatLongScalarEnc, DatetimeScalarEnc, CategoricalOrdinalEnc, ScalarRobustScalerEnc, \
-    TfidfEnc, ScalarPowerTransformerEnc, \
-    ScalarQuantileTransformerEnc, TextSummaryScalarEnc, ScalarQuantileOrdinalEnc, TextEmbeddingsEnc
+from data.data_encoders import LatLongScalarEnc, DatetimeScalarEnc \
+, CategoricalOrdinalEnc, ScalarRobustScalerEnc, TfidfEnc \
+, ScalarPowerTransformerEnc, ScalarQuantileTransformerEnc \
+, TextSummaryScalarEnc, ScalarQuantileOrdinalEnc, String2TensorEnc #sn added String2TensorEnc
 from data.utils import get_db_info
-
 
 class DatabaseDataset(Dataset):
     def __init__(self, db_name=None, datapoint_ids=None, encoders=None):
@@ -17,8 +17,7 @@ class DatabaseDataset(Dataset):
         self.datapoint_ids = datapoint_ids
         self.data_dir = os.path.join(data_root, self.db_name, 'preprocessed_datapoints')
         os.makedirs(self.data_dir, exist_ok=True)
-
-        self.db_info = get_db_info(self.db_name)
+        self.db_info = get_db_info(self.db_name, keeptext=False)  #sn add keeptext argument
 
         # Download data if necessary
         all_dps_present = len(os.listdir(self.data_dir)) == self.db_info['task']['n_train'] + self.db_info['task'][
@@ -51,21 +50,16 @@ class DatabaseDataset(Dataset):
                                                        feature_info['KBinsDiscretizer_bin_edges_'])
                     else:
                         raise ValueError(f'scalar encoder {s_enc} not recognized')
-                elif feature_info['type'] == 'DATETIME':
-                    enc = DatetimeScalarEnc()
-                elif feature_info['type'] == 'LATLONG':
-                    enc = LatLongScalarEnc()
-                elif feature_info['type'] == 'TEXT':
+                elif feature_info['type'] == 'DATETIME': enc = DatetimeScalarEnc()
+                elif feature_info['type'] == 'LATLONG' : enc = LatLongScalarEnc()
+                elif feature_info['type'] == 'VECTOR'  : enc = String2TensorEnc()      #sn
+                elif feature_info['type'] == 'TEXT'    :
                     t_enc = encoders['TEXT']
                     if t_enc == 'TfidfEnc':
-                        enc = TfidfEnc(feature_info['Tfidf_vocabulary_'],
-                                       feature_info['Tfidf_idf_'])
+                        enc = TfidfEnc(feature_info['Tfidf_vocabulary_'], feature_info['Tfidf_idf_'])
                     elif t_enc == 'TextSummaryScalarEnc':
                         enc = TextSummaryScalarEnc(feature_info['RobustScaler_center_'],
                                                    feature_info['RobustScaler_scale_'])
-                    # LK
-                    elif t_enc == 'TextEmbeddingsEnc':
-                        enc = TextEmbeddingsEnc(feature_info['Text_embeddings_'])
                 self.feature_encoders[node_type][feature_name] = enc
 
     def __len__(self):
@@ -73,6 +67,8 @@ class DatabaseDataset(Dataset):
 
     def __getitem__(self, item: int):
         dp_id = self.datapoint_ids[item]
+        #sn make sure we can observe access to pickle files. 
+        #sn import datetime; os.system("touch /tmp/ddgetitem-" + str(datetime.datetime.now()).replace(" ","_") )  #sn
         with open(os.path.join(self.data_dir, str(dp_id)), 'rb') as f:
             dp = pickle.load(f)
         return dp_id, dp
