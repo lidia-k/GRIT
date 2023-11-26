@@ -1,6 +1,6 @@
 import dgl.function as fn
 import torch
-from dgl import BatchedDGLGraph
+from dgl import DGLGraph as BatchedDGLGraph     #sn was:  from dgl import BatchedDGLGraph
 from dgl.nn.pytorch import edge_softmax
 from dgl.nn.pytorch.conv import GATConv
 from torch import nn

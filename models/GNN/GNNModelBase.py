@@ -1,8 +1,8 @@
-import time
+import time, pdb #sn adds pdb
 
 import numpy as np
 import torch
-from dgl import BatchedDGLGraph
+from dgl import DGLGraph as BatchedDGLGraph     #sn was:  from dgl import BatchedDGLGraph
 from torch import nn
 
 import models.tabular as tab_models
@@ -21,7 +21,7 @@ class GNNModelBase(nn.Module):
                  loss_class_kwargs, loss_class_name, p_dropout, readout_class_name, readout_kwargs, fcout_layer_sizes):
         super(GNNModelBase, self).__init__()
         self.writer = writer
-        self.db_info = get_db_info(dataset_name)
+        self.db_info = get_db_info( dataset_name, keeptext=False ) #sn added keeptext argument
         self.n_out = self.db_info['task']['n_classes']
         self.feature_encoders = feature_encoders
         self.init_model_class = tab_models.__dict__[init_model_class_name]
@@ -100,12 +100,10 @@ class GNNModelBase(nn.Module):
         for node_type, collated_features in b_features.items():
             # Compute the initial features for this node type...
             node_features = self.node_initializers[node_type](collated_features)
-
             # Scatter these features to the appropriate entries in bdgl.ndata
             node_type_int = self.db_info['node_type_to_int'][node_type]
             idxs_this_node_type = (b_node_types == node_type_int).nonzero()[:, 0]
             bdgl.nodes[idxs_this_node_type].data['h'] = node_features
-
         return bdgl
 
     def forward(self, input):
