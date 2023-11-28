@@ -3,23 +3,42 @@ import glob
 import json
 import math
 import os
-from collections import Iterable
+print( "imported models/utils.py::os" )
+from collections.abc import Iterable  #sn was: from collections import ..
+print( "imported models/utils.py:: Iterable" )
 from pprint import pprint
-
+print( "imported models/utils.py:: pprint" )
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import torch
+print( "imported models/utils.py:: torch" )
 from dgl import DGLGraph
 from torch import nn
 from torch.nn import Parameter
+print( "imported models/utils.py:: Parameter" )
 from tqdm import tqdm
-
+print( "imported models/utils.py:: tqdm" )
 sns.set(style="white", color_codes=True)
+print( "done sns.set()" )
 
-from utils import DummyWriter
+# from utils import DummyWriter                #sn crashes here
+# fix: copy/paste below.  grandb-git/utils.py :: DummyWriter
+class DummyWriter:
+    verbose = False
+    def __init__(self):        self.batches_done = 0
+    def add_histogram(self, *args, **kwargs): pass
+    def add_scalar(self, tag_name, object, iter_number, *args, **kwargs):
+        if tag_name == 'Train Loss/Train Loss':
+            # For testing purposes
+            self.train_loss = object
+            print('Train Loss step {} = {}'.format(iter_number, object))
+        else:                                 pass
+    def debug_info(self, *args, **kwargs):    pass
+    def add_text(self, *args, **kwargs):      pass
 
+print( "imported models/utils.py:: DummyWriter" )
 
 def save_train_kwargs(writer, train_kwargs):
     if not isinstance(writer, DummyWriter):

@@ -1,24 +1,11 @@
 from data.utils import build_db_info
 
-db_info = {'task': {'type': 'classification',
-                    'n_classes': 2,
-                    'n_train': 619326,
-                    'n_test': 44772,
-                    'train_class_counts': [582616, 36710]},
-           'node_type_to_int': {
-               'Project': 0,
-               'Essay': 1,
-               'Resource': 2,
-               'ResourceType': 3
-           },
-           'edge_type_to_int': {
-               'SELF': 0,
-               'PROJECT_TO_RESOURCETYPE': 1,
-               'ESSAY_TO_PROJECT': 2,
-               'RESOURCE_TO_PROJECT': 3,
-               'RESOURCE_TO_RESOURCETYPE': 4
-           },
-           'node_types_and_features': {'Project': {'school_id': {'type': 'CATEGORICAL'},
+db_info = { 'task': {'type': 'classification', 'n_classes': 2, 'n_train': 619326
+,            'n_test': 44772, 'train_class_counts': [582616, 36710]}
+, 'node_type_to_int': { 'Project': 0, 'Essay': 1, 'Resource': 2, 'ResourceType': 3 }
+, 'edge_type_to_int': { 'SELF': 0, 'PROJECT_TO_RESOURCETYPE': 1, 'ESSAY_TO_PROJECT': 2
+, 'RESOURCE_TO_PROJECT': 3, 'RESOURCE_TO_RESOURCETYPE': 4  }
+, 'node_types_and_features': {'Project': {'school_id': {'type': 'CATEGORICAL'},
                                                    'school_ncesid': {'type': 'CATEGORICAL'},
                                                    'school_latitude+++school_longitude': {'type': 'LATLONG'},
                                                    'school_city': {'type': 'CATEGORICAL'},
@@ -51,10 +38,14 @@ db_info = {'task': {'type': 'classification',
                                                    'date_posted': {'type': 'DATETIME'},
                                                    'is_exciting': {'type': 'CATEGORICAL'},
                                                    },
-                                       'Essay': {'title': {'type': 'TEXT'},
-                                                 'short_description': {'type': 'TEXT'},
-                                                 'need_statement': {'type': 'TEXT'},
-                                                 'essay': {'type': 'TEXT'},
+                                       'Essay': {'title'             : {'type': 'TEXT'},
+                                                 'titleV'            : {'type': 'VECTOR'}, #sn
+                                                 'short_description' : {'type': 'TEXT'},
+                                                 'short_descriptionV': {'type': 'VECTOR'}, #sn
+                                                 'need_statement'    : {'type': 'TEXT'},
+                                                 'need_statementV'   : {'type': 'VECTOR'}, #sn
+                                                 'essay'             : {'type': 'TEXT'},
+                                                 'essayV'            : {'type': 'VECTOR'}, #sn
                                                  },
                                        'Resource': {'vendor_id': {'type': 'CATEGORICAL'},
                                                     'vendor_name': {'type': 'CATEGORICAL'},
@@ -71,6 +62,6 @@ db_info = {'task': {'type': 'classification',
 
 if __name__ == '__main__':
     db_name = 'kddcup2014'
-    test_dp_query = "MATCH (p:Project) WHERE p.date_posted >= date('2014-01-01') RETURN p.project_id ORDER BY p.project_id "
-    train_dp_query = "MATCH (p:Project) WHERE p.date_posted < date('2014-01-01') RETURN p.project_id ORDER BY p.project_id "
+    test_dp_query  = "MATCH (p:Project) WHERE p.date_posted >= date('2014-01-01') RETURN p.project_id ORDER BY p.project_id "
+    train_dp_query = "MATCH (p:Project) WHERE p.date_posted <  date('2014-01-01') RETURN p.project_id ORDER BY p.project_id "
     build_db_info(db_name, db_info, test_dp_query, train_dp_query)

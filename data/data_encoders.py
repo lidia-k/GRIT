@@ -1,4 +1,4 @@
-import calendar
+import calendar, pdb #sn adds pdb
 import datetime
 import re
 from collections import Counter
@@ -9,13 +9,12 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from gpt4all import GPT4All, Embed4All
 from neotime import Date
 from pandas import DataFrame
-from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import RobustScaler, PowerTransformer, QuantileTransformer, KBinsDiscretizer
 from typing import List, Union, Iterable
+from sentence_transformers import SentenceTransformer  #sn
 
 
 class WontEncodeError(Exception):
@@ -30,9 +29,10 @@ class EncBase:
     def cat_dim(self):
         return len(self.cat_cards)
 
+    #a otherwise:  FutureWarning: The pandas.np module is deprecated and will be removed from pandas in a future version. Import numpy directly instead.
     def clean_data(self, data, dtype=None) -> list:
         if isinstance(data, pd.Series):
-            data = data.replace({pd.np.nan: None}).to_list()
+            data = data.replace({np.nan: None}).to_list()  #a #sn was:  pd.np.nan.
             if dtype == 'float':
                 unclean_data = data
                 data = []
@@ -573,7 +573,10 @@ def add_datepart(df: DataFrame, field_name: str, prefix: str = None, drop: bool 
     attr = ['Year', 'Month', 'Week', 'Day', 'Dayofweek', 'Dayofyear', 'Is_month_end', 'Is_month_start',
             'Is_quarter_end', 'Is_quarter_start', 'Is_year_end', 'Is_year_start']
     if time: attr = attr + ['Hour', 'Minute', 'Second']
-    for n in attr: df[prefix + n] = getattr(field.dt, n.lower())
+    for n in attr: 
+        #sn was: df[prefix + n] = getattr(field.dt, n.lower()) .  changed to if-else block
+        if n == 'Week':  df[prefix + n] = field.dt.isocalendar().week   #sn
+        else:            df[prefix + n] = getattr(field.dt, n.lower())  #sn
     if drop: df.drop(field_name, axis=1, inplace=True)
     return df
 
@@ -619,27 +622,34 @@ def add_cyclic_datepart(df: DataFrame, field_name: str, prefix: str = None, drop
     if drop: df.drop(field_name, axis=1, inplace=True)
     return df
 
-
-class TextEmbeddingsEnc:
+class TextEmbeddingsEnc:         #sn
     def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2'):
-        try: 
-            self.model = SentenceTransformer(model_name)
+        try:  self.model = SentenceTransformer( model_name, device='cuda' )
         except Exception as e:
             print(f"Failed to load model: {e}")
             self.model = None
-
     def embed(self, text):
-        if not self.model:
-            print("Model not loaded.")
-            return None
-
-        if not text:
-            print("Input text is empty.")
-            return None
-        
+        if not self.model:  print("Model not loaded.");     return None
+        if not       text:  print("Input text is empty.");  return None
         try: 
             embeddings = self.model.encode(text)
             return embeddings
         except Exception as e:
             print(f"Failed to generate embeddings: {e}")
             return None
+
+#-------------------------------------------------------------------------------
+# intent: enc_cont() -- convert list of string-ified vectors into a tensor
+# input : ['[1,..4]','[2,..5]'] = list of string-ified arrays.  batch size = 2 vectors
+# output: [ [1 .. 4] [2 .. 5] ] = tensor
+#-------------------------------------------------------------------------------
+class String2TensorEnc( EncBase ): #sn  to be used in DGL_collator()
+  cat_cards = []; cont_dim = 384
+  def __init__( ss ):
+    x = 0
+  def enc_cont( ss, values ):
+    zz = [ np.array( s.replace('[,','').replace('[','').replace(']','').split(',') ).astype(float)  for s in values ] #b
+    zz = torch.from_numpy( np.vstack(zz) )             #e vertically stack along batch size.  .to(device='cuda') ?
+    return zz
+  def enc_cat( ss, values ):    # some piece of code demands that enc_cat() exists
+    pass

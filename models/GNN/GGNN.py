@@ -1,4 +1,4 @@
-from dgl import BatchedDGLGraph
+from dgl import DGLGraph as BatchedDGLGraph  #sn was:  from dgl import BatchedDGLGraph
 from dgl.nn.pytorch.conv import GatedGraphConv
 from torch import nn
 

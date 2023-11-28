@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from dgl import BatchedDGLGraph
+from dgl import DGLGraph as BatchedDGLGraph     #sn was:  from dgl import BatchedDGLGraph
 from dgl.nn.pytorch.conv import GraphConv, RelGraphConv
 from torch import nn
 
@@ -18,11 +18,8 @@ class GCN(GNNModelBase):
         self.layers = nn.ModuleList()
         for _ in range(self.n_layers):
             self.layers.append(nn.ModuleDict({
-                'gc': GraphConv(in_feats=self.hidden_dim,
-                                out_feats=self.hidden_dim,
-                                norm=True,
-                                bias=True,
-                                activation=self.get_act()),
+                'gc': GraphConv(in_feats=self.hidden_dim, out_feats=self.hidden_dim
+                 ,    bias=True, norm="both", activation=self.get_act() ),  #sn was norm=True,
                 'norm': self.get_norm(self.hidden_dim),
                 'do': nn.Dropout(self.p_dropout)
             }))
