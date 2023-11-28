@@ -9,3 +9,7 @@ data/raw_data
 .hypothesis/
 runs/
 saved_runs/
+data_root/kddcup2014/preprocessed_datapoints
+data_root/raw_data
+data_root/tabular
+*.pkl
