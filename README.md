@@ -1,6 +1,6 @@
 # Supervised Learning on Relational Databases with Graph Neural Networks
 
-This is code to reproduce the results in the paper [Supervised Learning on Relational Databases with Graph Neural Networks](https://arxiv.org/abs/2002.02046).
+This is code to reproduce and improve the results in the paper [Supervised Learning on Relational Databases with Graph Neural Networks](https://arxiv.org/abs/2002.02046).
 
 ## Install dependencies
 
@@ -45,11 +45,13 @@ So you either need to follow the instructions below and build them yourself, or 
 
 6) (optional) To view the dataset in the built-in neo4j data viewer, navigate to `<your_machine's_ip_address>:7474` in a web browser, run `:server disconnect` to log off whatever your web browser thinks is the default neo4j server, and log into the right one by specifying `<port_for_browser>` in the web interface.
 
-7) Run `python -m data.<db_name>.build_dataset_from_database` from the root directory of this repo.
+7) Run `python text-vectors.py` from the root directory of this repo. This step is added to vectorize eassy text stored in the neo4j kddcup2014 db and write vector back to the db. 
 
-8) (optional) Run `python -m data.<db_name>.build_db_info` from the root directory of this repo.
+8) Run `python -m data.<db_name>.build_db_info` from the root directory of this repo. This step used to be optional as there is already dbinfo.json provided in the repo. However, since the step 7 to insert the text vectors to the db is added, dbinfo.jsonmust be recreated.
 
-9) (optional) to create the tabular and DFS datasets used in the experiments, run `python -m data.<db_name>.build_DFS_features` from the root directory of this repo.  Then run `python -m data.<db_name>.build_tabular_datasets` from the root directory of this repo.
+9) Run `python -m data.<db_name>.build_dataset_from_database` from the root directory of this repo.
+
+10) (optional) to create the tabular and DFS datasets used in the experiments, run `python -m data.<db_name>.build_DFS_features` from the root directory of this repo.  Then run `python -m data.<db_name>.build_tabular_datasets` from the root directory of this repo.
 
 
 ### Add your own datasets
