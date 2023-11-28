@@ -24,14 +24,18 @@
 # use vectors as floats
 # create ( n:planet { name:'earth', size:toFloatList( ['2','3','4'] ) } );
 
-import pdb, json, os, time, pandas, neo4j
+import os, time, neo4j, numpy, re 
 from   data.utils import get_neo4j_db_driver
 from   data.data_encoders import TextEmbeddingsEnc
-import numpy, re  # to convert numpy array to string
+
 
 vectorizer = TextEmbeddingsEnc()
-batchZ  = 32; j = 0;  # Z = size
-db_name = 'kddcup2014';  driver = get_neo4j_db_driver(db_name)
+batchZ  = 32 # Z = size
+j = 0  
+
+db_name = 'kddcup2014'
+driver = get_neo4j_db_driver(db_name)
+
 query   = ''.join([ 'match  (e:Essay) -[r:ESSAY_TO_PROJECT]-> (p:Project) '
 ,         'where e.essayV is null return e, r, p limit 100000' ])
 #,        'where e.short_descriptionV is null and e.essayV is not null return e, r, p limit 3' ])
@@ -43,18 +47,25 @@ query   = ''.join([ 'match  (e:Essay) -[r:ESSAY_TO_PROJECT]-> (p:Project) '
 #d "r" = raw string, so python doesn't treat "\[" as an escaped unicode character
 
 print( "-------------- start time ------------------  " ); os.system('date')
+
 with driver.session() as session:
-  pan = driver.execute_query( query, database='kddcup2014'
-  ,  result_transformer_ = neo4j.Result.to_df )
+  pan = driver.execute_query(
+    query, database='kddcup2014', result_transformer_ = neo4j.Result.to_df
+  )
+
   for feature in ['essay','title','need_statement','short_description']:
     for start in range( 0, len(pan), batchZ ):    # loop batches.  start = 0, 32, 64, ...
       end        = min( start + batchZ, len(pan) )                           #b
-      text_batch = [ pan['e'][i][feature     ] for i in range( start, end ) ]
+      
+      text_batch = [ pan['e'][i][feature] for i in range( start, end ) ]
       projects   = [ pan['p'][i]['project_id'] for i in range( start, end ) ]
-      start_time = time.time();               # perf timer
       vectors    = vectorizer.embed( text_batch )
+
+      start_time = time.time();               # perf timer
       duration   = start_time - time.time()
-      if end % (batchZ * 10) == 0: print(f'{feature}.  {end}.  {duration}')
+      if end % (batchZ * 10) == 0: 
+        print(f'{feature}.  {end}.  {duration}')
+      
       for i in range( len(vectors) ):
         vectorString = numpy.array2string( vectors[i] )
         vectorString = re.sub( "\s+"  , ",", vectorString.strip() )
