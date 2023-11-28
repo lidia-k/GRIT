@@ -624,13 +624,21 @@ def add_cyclic_datepart(df: DataFrame, field_name: str, prefix: str = None, drop
 
 class TextEmbeddingsEnc:         #sn
     def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2'):
-        try:  self.model = SentenceTransformer( model_name, device='cuda' )
+        try:  
+            device = 'cuda' if torch.cuda.is_available() else None
+            self.model = SentenceTransformer(model_name, device=device)
         except Exception as e:
             print(f"Failed to load model: {e}")
             self.model = None
+
     def embed(self, text):
-        if not self.model:  print("Model not loaded.");     return None
-        if not       text:  print("Input text is empty.");  return None
+        if not self.model:  
+            print("Model not loaded.")
+            return
+        if not text:
+            print("Input text is empty.")
+            return
+        
         try: 
             embeddings = self.model.encode(text)
             return embeddings
