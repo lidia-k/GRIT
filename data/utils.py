@@ -99,7 +99,7 @@ def populate_db_info(db_name, db_info):
 
                 elif feature_info['type'] == 'VECTOR':  #sn added this elif code block
                     #sn just hard code some garbage.  the real values will be taken from the database
-                    feature_info['vector'            ] = [1.2, 3.4] 
+                    feature_info['vector'] = [1.2, 3.4] 
 
                 if '+++' in feature_name:
                     feature_name = feature_name.split('+++')[0]
@@ -195,8 +195,6 @@ def create_datapoints_with_xargs(db_name, datapoint_ids, base_query, target_dir,
 
 
 def get_db_container(db_name):
-    #sn hard code the container because interacting w/ docker is tricky
-    return 'hard code container id here' #sn sebastian should be publicly humiliated for this
     """
     Grab the container id for this db's docker container, starting container if needed.
     If you can't connect, make sure the store_lock file is removed from the databases/ directory

@@ -1,11 +1,24 @@
 from data.utils import build_db_info
 
-db_info = { 'task': {'type': 'classification', 'n_classes': 2, 'n_train': 619326
-,            'n_test': 44772, 'train_class_counts': [582616, 36710]}
-, 'node_type_to_int': { 'Project': 0, 'Essay': 1, 'Resource': 2, 'ResourceType': 3 }
-, 'edge_type_to_int': { 'SELF': 0, 'PROJECT_TO_RESOURCETYPE': 1, 'ESSAY_TO_PROJECT': 2
-, 'RESOURCE_TO_PROJECT': 3, 'RESOURCE_TO_RESOURCETYPE': 4  }
-, 'node_types_and_features': {'Project': {'school_id': {'type': 'CATEGORICAL'},
+db_info = {'task': {'type': 'classification',
+                    'n_classes': 2,
+                    'n_train': 619326,
+                    'n_test': 44772,
+                    'train_class_counts': [582616, 36710]},
+           'node_type_to_int': {
+               'Project': 0,
+               'Essay': 1,
+               'Resource': 2,
+               'ResourceType': 3
+           },
+           'edge_type_to_int': {
+               'SELF': 0,
+               'PROJECT_TO_RESOURCETYPE': 1,
+               'ESSAY_TO_PROJECT': 2,
+               'RESOURCE_TO_PROJECT': 3,
+               'RESOURCE_TO_RESOURCETYPE': 4
+           },
+           'node_types_and_features': {'Project': {'school_id': {'type': 'CATEGORICAL'},
                                                    'school_ncesid': {'type': 'CATEGORICAL'},
                                                    'school_latitude+++school_longitude': {'type': 'LATLONG'},
                                                    'school_city': {'type': 'CATEGORICAL'},
@@ -38,14 +51,14 @@ db_info = { 'task': {'type': 'classification', 'n_classes': 2, 'n_train': 619326
                                                    'date_posted': {'type': 'DATETIME'},
                                                    'is_exciting': {'type': 'CATEGORICAL'},
                                                    },
-                                       'Essay': {'title'             : {'type': 'TEXT'},
-                                                 'titleV'            : {'type': 'VECTOR'}, #sn
-                                                 'short_description' : {'type': 'TEXT'},
+                                       'Essay': {'title': {'type': 'TEXT'},
+                                                 'titleV': {'type': 'VECTOR'}, #sn
+                                                 'short_description': {'type': 'TEXT'},
                                                  'short_descriptionV': {'type': 'VECTOR'}, #sn
-                                                 'need_statement'    : {'type': 'TEXT'},
-                                                 'need_statementV'   : {'type': 'VECTOR'}, #sn
-                                                 'essay'             : {'type': 'TEXT'},
-                                                 'essayV'            : {'type': 'VECTOR'}, #sn
+                                                 'need_statement': {'type': 'TEXT'},
+                                                 'need_statementV': {'type': 'VECTOR'}, #sn
+                                                 'essay': {'type': 'TEXT'},
+                                                 'essayV' : {'type': 'VECTOR'} #sn
                                                  },
                                        'Resource': {'vendor_id': {'type': 'CATEGORICAL'},
                                                     'vendor_name': {'type': 'CATEGORICAL'},
