@@ -68,7 +68,7 @@ with driver.session() as session:
   base_query = 'MATCH r = (p:Project)--(n)-[*0..1]->(m) \
     WHERE p.project_id = "{}"  RETURN p, r, n, m'                            #a
 target_dir = os.path.join(data_root, db_name, 'preprocessed_datapoints')
-# os.makedirs(target_dir, exist_ok=False)
+os.makedirs(target_dir, exist_ok=False)
 n_jobs = 20
 #sn was:  create_datapoints_with_xargs(db_name, datapoint_ids, base_query, target_dir, n_jobs)
 
@@ -96,8 +96,7 @@ for i in range( len(datapoint_ids) ):                                 # loop gra
       if not (node_type == label_node_type and feature_name == label_feature_name):
         features[node_type][feature_name] = []
 
-  neo4j_id_to_graph_idx = {node.element_id: idx for idx
-  ,   node in enumerate(g.nodes)}
+  neo4j_id_to_graph_idx = {node.element_id: idx for idx, node in enumerate(g.nodes)}
   node_types = [None] * len(g.nodes)
   for node in g.nodes:                                                 # loop node
     node_type = tuple(node.labels)[0]
