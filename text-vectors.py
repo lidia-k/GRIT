@@ -36,8 +36,10 @@ j = 0
 db_name = 'kddcup2014'
 driver = get_neo4j_db_driver(db_name)
 
-query   = ''.join([ 'match  (e:Essay) -[r:ESSAY_TO_PROJECT]-> (p:Project) '
-,         'where e.essayV is null return e, r, p limit 100000' ])
+query   = ''.join([
+  'match (e:Essay)-[r:ESSAY_TO_PROJECT]-> (p:Project)', 
+  'return e, r, p'
+])
 #,        'where e.short_descriptionV is null and e.essayV is not null return e, r, p limit 3' ])
 
 #b min(): at the last batch, we want to end at len(pan), not start + batchZ
@@ -54,25 +56,27 @@ with driver.session() as session:
   )
 
   for feature in ['essay','title','need_statement','short_description']:
-    for start in range( 0, len(pan), batchZ ):    # loop batches.  start = 0, 32, 64, ...
-      end        = min( start + batchZ, len(pan) )                           #b
+    for start in range(0, len(pan), batchZ):    # loop batches.  start = 0, 32, 64, ...
+      end = min(start + batchZ, len(pan))                           #b
       
-      text_batch = [ pan['e'][i][feature] for i in range( start, end ) ]
-      projects   = [ pan['p'][i]['project_id'] for i in range( start, end ) ]
-      vectors    = vectorizer.embed( text_batch )
+      text_batch = [pan['e'][i][feature] for i in range(start, end)]
+      projects = [pan['p'][i]['project_id'] for i in range(start, end)]
+      vectors = vectorizer.embed(text_batch)
 
       start_time = time.time();               # perf timer
       duration   = start_time - time.time()
       if end % (batchZ * 10) == 0: 
         print(f'{feature}.  {end}.  {duration}')
       
-      for i in range( len(vectors) ):
-        vectorString = numpy.array2string( vectors[i] )
-        vectorString = re.sub( "\s+"  , ",", vectorString.strip() )
-        vectorString = re.sub( r'^\[,', '[', vectorString.strip() )          #d
-        query = ''.join([ "match x = (e:Essay) -[r:ESSAY_TO_PROJECT]-> "
-        ,  "(p:Project { project_id: \'", projects[i], "\' } ) "
-        ,  "set e.",feature,"V = \'", vectorString, "\'" ])                  #c
+      for i in range(len(vectors)):
+        vectorString = numpy.array2string(vectors[i])
+        vectorString = re.sub("\s+"  , ",", vectorString.strip())
+        vectorString = re.sub(r'^\[,', '[', vectorString.strip())          #d
+        query = ''.join([
+          "match x = (e:Essay) -[r:ESSAY_TO_PROJECT]-> ",  
+          "(p:Project { project_id: \'", projects[i], "\' } ) ",  
+          "set e.",feature,"V = \'", vectorString, "\'"
+        ])                  #c
         update = driver.execute_query( query, database='kddcup2014' )
 
 print( "end time: " ); os.system('date')
