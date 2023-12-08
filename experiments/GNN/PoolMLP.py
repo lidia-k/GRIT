@@ -20,7 +20,6 @@ def get_kwargs(db_name):
     p_dropout = 0.5
     scalar_enc = 'ScalarRobustScalerEnc'  # ScalarRobustScalerEnc ScalarQuantileOrdinalEnc
     datetime_enc = 'DatetimeScalarEnc'  # DatetimeScalarEnc DatetimeOrdinalEnc
-    # LK
     text_enc = 'TextSummaryScalarEnc'  # TextSummaryScalarEnc TfidfEnc TextEmbeddingsEnc
     one_hot_embeddings = True
     readout = 'avg'
@@ -41,6 +40,7 @@ def get_kwargs(db_name):
         max_nodes_per_graph = False
         batch_size = 1024
         hidden_dim = 1024
+
     kwargs = dict(
         seed=1234,
         debug_network=False,
@@ -61,6 +61,7 @@ def get_kwargs(db_name):
         batch_size=batch_size,
         num_workers=8
     )
+
     # LR Schedule
     kwargs.update(
         lr_scheduler_class_name='StepLR',
@@ -172,14 +173,13 @@ if __name__ == '__main__':
     ]:
         kwargs = get_kwargs(db_name)
         kwargs['log_dir'] = os.path.join('GNN',
-                                            db_name,
-                                            model_class_name,
-                                            experiment_slug,
-                                            train_test_split)
+                                        db_name,
+                                        model_class_name,
+                                        experiment_slug,
+                                        train_test_split)
         kwargs['train_test_split'] = train_test_split
         session_name = '_'.join([db_name, model_class_name, experiment_slug, train_test_split])
-        # LK
-        script_path = '/Users/lidia/Supervised-Learning-on-Relational-Databases-with-GNNs/start_training.py'
+        script_path = f'{os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))}/start_training.py'
         script_command = f'sudo {sys.executable} {script_path} {base64.b64encode(pickle.dumps(kwargs)).decode()}'
         os.system(script_command)
         """

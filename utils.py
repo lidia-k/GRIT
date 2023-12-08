@@ -120,34 +120,44 @@ def nan_initializer(shape, dtype, ctx, id_range):
 
 def get_DGL_collator(feature_encoders, db_info, max_nodes_per_graph=False):
   def DGL_collator(datapoints):     # t = time.perf_counter()
-    dgl_graphs = [];   b_node_types = []; b_dp_ids = []; 
-    b_features = None; b_edge_types = []; labels   = [];
-        
+    dgl_graphs = []
+    b_node_types = []
+    b_dp_ids = []
+    b_features = None
+    b_edge_types = []
+    labels = []
+
     for dp_id, (edge_list, node_types, edge_types, features, label) in datapoints:
-      b_dp_ids.append(dp_id)                                 # print(dp_id, len(node_types), len(edge_types)) 
-      # Truncate enormous graphs if necessary
-      if max_nodes_per_graph and len(node_types) > max_nodes_per_graph:         # print(f'Cutting off graph {dp_id}')
-          edge_list, node_types, edge_types, features = truncate_graph( db_info
-          ,   max_nodes_per_graph, edge_list, node_types, edge_types, features)
-      edge_list  += [(v, u) for u, v in edge_list ]          # Add reverse edges
-      edge_types += [-i     for i    in edge_types]          # Add reverse edges
-      edge_list += [(i, i) for i in range(len(node_types))]  # Add self-edges
-      edge_types += [0] * len(node_types)                    # Add self-edges
-      sor = [ i[0] for i in edge_list ]                      #sn added
-      des = [ i[1] for i in edge_list ]                      #sn added
-      graph = dgl.graph( data = (sor,des) ).to('cuda')   #d  #sn was:   graph = DGLGraph(graph_data=edge_list)
-      dgl_graphs.append(graph)
-      b_node_types.append(node_types)
-      b_edge_types.append(edge_types)
-      features = RemoveEssayText( features ) #sn
-      if b_features is None:
-        b_features = deepcopy(features)
-      else:
-        for node_type, g_features in features.items():
-          for feature_name, feature_values in g_features.items():
-            b_features[node_type][feature_name] += feature_values
-      b_features = RemoveEssayText( b_features )  #sn Removethis is probably redundant.
-      labels.append(label)
+        b_dp_ids.append(dp_id)                                 # print(dp_id, len(node_types), len(edge_types)) 
+
+        # Truncate enormous graphs if necessary
+        if max_nodes_per_graph and len(node_types) > max_nodes_per_graph:         # print(f'Cutting off graph {dp_id}')
+            edge_list, node_types, edge_types, features = truncate_graph(
+                db_info, max_nodes_per_graph, edge_list, node_types, edge_types, features
+                )
+            
+        edge_list  += [(v, u) for u, v in edge_list]           # Add reverse edges
+        edge_types += [-i for i in edge_types]                 # Add reverse edges
+        edge_list += [(i, i) for i in range(len(node_types))]  # Add self-edges
+        edge_types += [0] * len(node_types)                    # Add self-edges
+        sor = [i[0] for i in edge_list]                        #sn added
+        des = [i[1] for i in edge_list]                        #sn added 
+        graph = dgl.graph( data = (sor,des) ) #d  #sn was:   graph = DGLGraph(graph_data=edge_list)
+        
+        dgl_graphs.append(graph)
+        b_node_types.append(node_types)
+        b_edge_types.append(edge_types)
+        features = RemoveEssayText(features) #sn
+
+        if b_features is None:
+            b_features = deepcopy(features)
+        else:
+            for node_type, g_features in features.items():
+                for feature_name, feature_values in g_features.items():
+                    b_features[node_type][feature_name] += feature_values
+        
+        b_features = RemoveEssayText(b_features)  #sn Removethis is probably redundant.
+        labels.append(label)
 
     b_dgl = dgl.batch(dgl_graphs)
     b_dgl.set_n_initializer(nan_initializer)
@@ -155,8 +165,8 @@ def get_DGL_collator(feature_encoders, db_info, max_nodes_per_graph=False):
     b_node_types = torch.LongTensor(np.concatenate(b_node_types))
     b_edge_types = torch.LongTensor(np.concatenate(b_edge_types))
     b_dgl.dp_ids = b_dp_ids
-    b_dgl.ndata['node_types'] = b_node_types.to('cuda')  #sn added to(cuda)
-    b_dgl.edata['edge_types'] = b_edge_types.to('cuda')  #sn added to(cuda)
+    b_dgl.ndata['node_types'] = b_node_types  #sn added to(cuda)
+    b_dgl.edata['edge_types'] = b_edge_types  #sn added to(cuda)
     # print('build DGLGraphs: {}'.format(time.perf_counter() - t))
     # Encode the batch features into Tensors from their database values
     # t = time.perf_counter()
@@ -212,10 +222,12 @@ def get_DGL_collator(feature_encoders, db_info, max_nodes_per_graph=False):
   return DGL_collator
 
 def RemoveEssayText( features ):  #sn new function
-   names = list( features['Essay'].keys() )
+   names = list(features['Essay'].keys())
+
    for feature_name in names:
        if feature_name in ['essay','title','need_statement','short_description']:
-           features['Essay'].pop( feature_name )
+           features['Essay'].pop(feature_name)
+   
    return features
 
 def get_train_test_dp_ids(dataset_name):

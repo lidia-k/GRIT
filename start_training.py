@@ -4,6 +4,7 @@ import base64, json, os, pickle, pprint, sys, pdb #sn adds pdb
 
 import lightgbm as lgb; import numpy as np; import pandas as pd
 import seaborn as sns
+import time
 import torch
 import torch.optim as opt
 import matplotlib.pyplot as plt
@@ -182,26 +183,53 @@ xd   = val_data, test_data, train_data.  all 3 have the same data structure
 pert = { project:{..}, essay:{..}, resource:{..}, rt:{..} }
 -----------------------------------------------------------------------------'''
 def train_model(
-    writer, seed, log_dir, debug_network, dataset_name, train_test_split
-    , encoders, max_nodes_per_graph, train_fraction_to_use, sampler_class_name
-    , sampler_class_kwargs, model_class_name, model_kwargs, batch_size, epochs
-    , optimizer_class_name, optimizer_kwargs, lr_scheduler_class_name
-    , lr_scheduler_kwargs, early_stopping_patience, wd_bias, wd_embed, wd_bn
-    , load_model_weights_from='', early_stopping_metric='loss', device='cpu'
-    , num_workers=0, find_lr=True):
-    train_data, val_data, _ = get_train_val_test_datasets( dataset_name=dataset_name
-    ,  train_test_split=train_test_split, encoders=encoders
-    ,  train_fraction_to_use=train_fraction_to_use)
+        writer,
+        seed,
+        log_dir,
+        debug_network,
+        dataset_name,
+        train_test_split,
+        encoders,
+        max_nodes_per_graph,
+        train_fraction_to_use,
+        sampler_class_name,
+        sampler_class_kwargs,
+        model_class_name,
+        model_kwargs,
+        batch_size,
+        epochs,
+        optimizer_class_name,
+        optimizer_kwargs,
+        lr_scheduler_class_name,
+        lr_scheduler_kwargs,
+        early_stopping_patience,
+        wd_bias,
+        wd_embed,
+        wd_bn,
+        load_model_weights_from='',
+        early_stopping_metric='loss',
+        device='cpu',
+        num_workers=0,
+        find_lr=True):
+    
+    train_data, val_data, _ = get_train_val_test_datasets( 
+        dataset_name=dataset_name,  
+        train_test_split=train_test_split, 
+        encoders=encoders,  
+        train_fraction_to_use=train_fraction_to_use
+    )
     train_loader = get_dataloader(dataset=train_data,
                                   batch_size=batch_size,
                                   sampler_class_name=sampler_class_name,
                                   sampler_class_kwargs=sampler_class_kwargs,
                                   num_workers=num_workers,
                                   max_nodes_per_graph=max_nodes_per_graph)
+    
     print(f'# of datapoints        : {len(train_loader) * batch_size}')      #sn
     print(f'batch size             : {batch_size}')                          #sn
     print(f'Batches per train epoch: {len(train_loader)}')
     print(f'Total batches          : {len(train_loader) * epochs}')
+
     val_loader = get_dataloader(dataset=val_data,
                                 batch_size=batch_size,
                                 sampler_class_name='SequentialSampler',
@@ -429,42 +457,136 @@ if __name__ == '__main__':
     kwargs = dict()
 
     #sn kwargs from experiments/GNN/GCN.py   
-    kwargs = {'seed': 1234, 'debug_network': False, 'encoders': {'VECTOR':'String2TensorEnc', 'CATEGORICAL': 'CategoricalOrdinalEnc', 'SCALAR': 'ScalarRobustScalerEnc', 'DATETIME': 'DatetimeScalarEnc', 'LATLONG': 'LatLongScalarEnc', 'TEXT': 'TextSummaryScalarEnc'}, 'early_stopping_patience': 50, 'early_stopping_metric': 'auroc', 'max_nodes_per_graph': 50000, 'train_fraction_to_use': 1.0, 'dataset_name': 'kddcup2014', 'device': 'cuda', 'find_lr': False, 'epochs': 20, 'batch_size': 200, 'num_workers': 0, 'lr_scheduler_class_name': 'StepLR', 'lr_scheduler_kwargs': {'step_size': 1, 'gamma': 1.0}, 'optimizer_class_name': 'AdamW', 'optimizer_kwargs': {'lr': 0.0001, 'weight_decay': 0.0}, 'wd_bias': False, 'wd_embed': False, 'wd_bn': False, 'sampler_class_name': 'RandomSampler', 'sampler_class_kwargs': {}, 'model_class_name': 'GCN', 'model_kwargs': {'hidden_dim': 128, 'init_model_class_name': 'TabMLP', 'init_model_kwargs': {'layer_sizes': [4.0], 'max_emb_dim': 32, 'p_dropout': 0.5, 'one_hot_embeddings': False, 'drop_whole_embeddings': False, 'norm_class_name': 'Identity', 'norm_class_kwargs': {}, 'activation_class_name': 'SELU', 'activation_class_kwargs': {}}, 'p_dropout': 0.5, 'n_layers': 1, 'activation_class_name': 'SELU', 'activation_class_kwargs': {}, 'norm_class_name': 'Identity', 'norm_class_kwargs': {}, 'loss_class_name': 'CrossEntropyLoss', 'loss_class_kwargs': {'weight': None}, 'fcout_layer_sizes': [], 'readout_class_name': 'GlobalAttentionPooling', 'readout_kwargs': {'n_layers': 2, 'act_name': 'SELU'}}, 'log_dir': 'kddcup2014/GCN/Nov20_09-05-08-586684/use_full_train', 'train_test_split': 'use_full_train'}  #sn adds
+    """
+    kwargs = {
+        'seed': 1234, 
+        'debug_network': False, 
+        'encoders': {
+            'VECTOR':'String2TensorEnc', 
+            'CATEGORICAL': 'CategoricalOrdinalEnc', 
+            'SCALAR': 'ScalarRobustScalerEnc', 
+            'DATETIME': 'DatetimeScalarEnc', 
+            'LATLONG': 'LatLongScalarEnc', 
+            'TEXT': 'TextSummaryScalarEnc'
+        }, 
+        'early_stopping_patience': 50, 
+        'early_stopping_metric': 'auroc', 
+        'max_nodes_per_graph': 50000, 
+        'train_fraction_to_use': 1.0, 
+        'dataset_name': 'kddcup2014', 
+        'device': 'cuda', 
+        'find_lr': False, 
+        'epochs': 20, 
+        'batch_size': 200, 
+        'num_workers': 0, 
+        'lr_scheduler_class_name': 'StepLR', 
+        'lr_scheduler_kwargs': {'step_size': 1, 'gamma': 1.0}, 
+        'optimizer_class_name': 'AdamW', 
+        'optimizer_kwargs': {'lr': 0.0001, 'weight_decay': 0.0}, 
+        'wd_bias': False, 
+        'wd_embed': False, 
+        'wd_bn': False, 
+        'sampler_class_name': 'RandomSampler', 
+        'sampler_class_kwargs': {}, 
+        'model_class_name': 'GCN', 
+        'model_kwargs': {
+            'hidden_dim': 128, 
+            'init_model_class_name': 'TabMLP', 
+            'init_model_kwargs': {
+                'layer_sizes': [4.0], 
+                'max_emb_dim': 32, 
+                'p_dropout': 0.5, 
+                'one_hot_embeddings': False, 
+                'drop_whole_embeddings': False, 
+                'norm_class_name': 'Identity', 
+                'norm_class_kwargs': {}, 
+                'activation_class_name': 'SELU', 
+                'activation_class_kwargs': {}
+                }, 
+            'p_dropout': 0.5, 
+            'n_layers': 1, 
+            'activation_class_name': 'SELU', 
+            'activation_class_kwargs': {}, 
+            'norm_class_name': 'Identity', 
+            'norm_class_kwargs': {}, 
+            'loss_class_name': 'CrossEntropyLoss', 
+            'loss_class_kwargs': {'weight': None}, 
+            'fcout_layer_sizes': [], 
+            'readout_class_name': 'GlobalAttentionPooling', 
+            'readout_kwargs': {'n_layers': 2, 'act_name': 'SELU'}
+            }, 
+        'log_dir': 'kddcup2014/GCN/Nov20_09-05-08-586684/use_full_train', 
+        'train_test_split': 'use_full_train'
+    }  #sn adds
+    """
+    timestamp = time.strftime("%Y%m%d-%H%M%S"); #sn added
 
-    import time; timestamp = time.strftime("%Y%m%d-%H%M%S"); #sn added
+    #sn added kwargs dictionary
+    kwargs = {
+        'seed': 1234, 
+        'debug_network': False, 
+        'encoders': {
+            'CATEGORICAL': 'CategoricalOrdinalEnc', 
+            'SCALAR': 'ScalarRobustScalerEnc',   
+            'DATETIME': 'DatetimeScalarEnc', 
+            'LATLONG': 'LatLongScalarEnc',   
+            'TEXT': 'TextSummaryScalarEnc', 
+            'VECTOR': 'String2TensorEnc' #sn added VECTOR
+        }, 
+        'num_workers': 0, 
+        'model_class_name': 'PoolMLP', 
+        'batch_size': 1024, 
+        'early_stopping_patience': 100, 
+        'early_stopping_metric': 'auroc', 
+        'max_nodes_per_graph': False, 
+        'train_fraction_to_use': 1.0, 
+        'dataset_name': 'kddcup2014', 
+        'device': 'cpu', 
+        'find_lr': False, 
+        'epochs': 20, 
+        'lr_scheduler_class_name': 'StepLR',
+        'lr_scheduler_kwargs': {'step_size': 1, 'gamma': 1.0}, 
+        'optimizer_class_name': 'AdamW', 
+        'optimizer_kwargs': {'lr': 0.0001, 'weight_decay': 0.0}, 
+        'wd_bias': False, 
+        'wd_embed': False, 
+        'wd_bn': False, 
+        'sampler_class_name': 'RandomSampler', 
+        'sampler_class_kwargs': {}, 
+        'model_kwargs': {
+            'hidden_dim': 1024, 
+            'init_model_class_name': 'TabMLP', 
+            'init_model_kwargs': {
+                'layer_sizes': [4.0], 
+                'max_emb_dim': 32, 
+                'p_dropout': 0.5, 
+                'one_hot_embeddings': True, 
+                'drop_whole_embeddings': False, 
+                'norm_class_name': 'BatchNorm1d', 
+                'norm_class_kwargs': {}, 
+                'activation_class_name': 'SELU', 
+                'activation_class_kwargs': {}  
+            }, 
+            'activation_class_name': 'SELU', 
+            'activation_class_kwargs': {}, 
+            'norm_class_name': 'BatchNorm1d', 
+            'norm_class_kwargs': {}, 
+            'loss_class_name': 'CrossEntropyLoss', 
+            'loss_class_kwargs': {'weight': None}, 
+            'p_dropout': 0.5, 
+            'fcout_layer_sizes': [1.0], 
+            'readout_class_name': 'AvgPooling', 
+            'readout_kwargs': {}
+            }, 
+        'log_dir': 'GNN/kddcup2014/PoolMLP/' + timestamp + '/use_full_train', 
+        'train_test_split': 'use_full_train' 
+    }  #sn
+
     kwargs['log_dir'] = os.getcwd() + '/runs/' + kwargs['dataset_name'] + '/' + kwargs['model_class_name']  #sn
     os.system( 'rm -r ' + kwargs['log_dir'] )  #sn
-    #sn added kwargs dictionary
-    '''
-    kwargs = { 'seed': 1234, 'debug_network': False
-    , 'encoders': {'CATEGORICAL': 'CategoricalOrdinalEnc', 'SCALAR': 'ScalarRobustScalerEnc'
-    ,   'DATETIME': 'DatetimeScalarEnc', 'LATLONG': 'LatLongScalarEnc'
-    ,   'TEXT': 'TextSummaryScalarEnc', 'VECTOR': 'String2TensorEnc' }  #sn added VECTOR
-    , 'num_workers': 0, 'model_class_name': 'PoolMLP', 'batch_size': 1024
-    , 'early_stopping_patience': 100, 'early_stopping_metric': 'auroc'
-    , 'max_nodes_per_graph': False, 'train_fraction_to_use': 1.0
-    , 'dataset_name': 'kddcup2014', 'device': 'cuda', 'find_lr': False, 'epochs': 20
-    , 'lr_scheduler_class_name': 'StepLR', 'lr_scheduler_kwargs': {'step_size': 1, 'gamma': 1.0}
-    , 'optimizer_class_name': 'AdamW', 'optimizer_kwargs': {'lr': 0.0001, 'weight_decay': 0.0}
-    , 'wd_bias': False, 'wd_embed': False, 'wd_bn': False
-    , 'sampler_class_name': 'RandomSampler', 'sampler_class_kwargs': {}
-    , 'model_kwargs':                                                       { 
-        'hidden_dim': 1024, 'init_model_class_name': 'TabMLP',
-        'init_model_kwargs':                                                { 
-          'layer_sizes': [4.0], 'max_emb_dim': 32, 'p_dropout': 0.5
-          , 'one_hot_embeddings': True, 'drop_whole_embeddings': False
-          , 'norm_class_name': 'BatchNorm1d', 'norm_class_kwargs': {}
-          , 'activation_class_name': 'SELU', 'activation_class_kwargs': {}  }
-        , 'activation_class_name': 'SELU', 'activation_class_kwargs': {}
-        , 'norm_class_name': 'BatchNorm1d', 'norm_class_kwargs': {}
-        , 'loss_class_name': 'CrossEntropyLoss', 'loss_class_kwargs': {'weight': None}
-        , 'p_dropout': 0.5, 'fcout_layer_sizes': [1.0], 'readout_class_name': 'AvgPooling'
-        , 'readout_kwargs': {}                                             }
-    , 'log_dir': 'GNN/kddcup2014/PoolMLP/' + timestamp + '/use_full_train'
-    , 'train_test_split': 'use_full_train' }  #sn
-    '''
   else:
-    kwargs = pickle.loads( base64.b64decode( sys.argv[1] ) )
+    kwargs = pickle.loads(base64.b64decode(sys.argv[1]))
+    
   main(kwargs)
 
         # # This is here as an example:

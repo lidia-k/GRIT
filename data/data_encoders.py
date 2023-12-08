@@ -651,13 +651,21 @@ class TextEmbeddingsEnc:         #sn
 # input : ['[1,..4]','[2,..5]'] = list of string-ified arrays.  batch size = 2 vectors
 # output: [ [1 .. 4] [2 .. 5] ] = tensor
 #-------------------------------------------------------------------------------
-class String2TensorEnc( EncBase ): #sn  to be used in DGL_collator()
-  cat_cards = []; cont_dim = 384
+class String2TensorEnc(EncBase): #sn  to be used in DGL_collator()
+  cat_cards = []
+  cont_dim = 384
+  
   def __init__( ss ):
     x = 0
+  
   def enc_cont( ss, values ):
-    zz = [ np.array( s.replace('[,','').replace('[','').replace(']','').split(',') ).astype(float)  for s in values ] #b
-    zz = torch.from_numpy( np.vstack(zz) )             #e vertically stack along batch size.  .to(device='cuda') ?
+    zz = [
+        np.array(
+            s.replace('[,','').replace('[','').replace(']','').split(',')
+            ).astype(float) for s in values
+        ] #b
+    zz = torch.from_numpy(np.vstack(zz))             #e vertically stack along batch size.  .to(device='cuda') ?
     return zz
+  
   def enc_cat( ss, values ):    # some piece of code demands that enc_cat() exists
     pass
