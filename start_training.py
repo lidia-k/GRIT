@@ -541,7 +541,7 @@ if __name__ == '__main__':
         'max_nodes_per_graph': False, 
         'train_fraction_to_use': 1.0, 
         'dataset_name': 'kddcup2014', 
-        'device': 'cpu', 
+        'device': 'cuda', 
         'find_lr': False, 
         'epochs': 20, 
         'lr_scheduler_class_name': 'StepLR',
