@@ -52,9 +52,9 @@
 #   so that we don't have to do xargs shell command.
 #-------------------------------------------------------------------------------
 
-import os, pdb, pickle, sys, neotime, neo4j #sn added neo4j for isinstance( value, (neo4j.time.Date) )
+import os, pdb, pickle, neotime, neo4j #sn added neo4j for isinstance( value, (neo4j.time.Date) )
 from __init__ import data_root
-from data.utils import create_datapoints_with_xargs, get_neo4j_db_driver
+from data.utils import get_neo4j_db_driver
 from data.utils import get_db_info
 from data.utils import get_neo4j_db_driver
 
