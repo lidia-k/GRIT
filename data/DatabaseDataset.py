@@ -16,7 +16,7 @@ class DatabaseDataset(Dataset):
         self.db_name = db_name
         self.datapoint_ids = datapoint_ids
         self.data_dir = os.path.join(data_root, self.db_name, 'preprocessed_datapoints')
-        os.makedirs(self.data_dir, exist_ok=False)
+        #os.makedirs(self.data_dir, exist_ok=True)
         self.db_info = get_db_info(self.db_name, keeptext=False)  #sn add keeptext argument
 
         # Download data if necessary
