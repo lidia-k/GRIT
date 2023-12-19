@@ -159,14 +159,14 @@ def get_DGL_collator(feature_encoders, db_info, max_nodes_per_graph=False):
         b_features = RemoveEssayText(b_features)  #sn Removethis is probably redundant.
         labels.append(label)
 
-    b_dgl = dgl.batch(dgl_graphs)
+    b_dgl = dgl.batch(dgl_graphs).to('cuda')
     b_dgl.set_n_initializer(nan_initializer)
     b_dgl.set_e_initializer(nan_initializer)
     b_node_types = torch.LongTensor(np.concatenate(b_node_types))
     b_edge_types = torch.LongTensor(np.concatenate(b_edge_types))
     b_dgl.dp_ids = b_dp_ids
-    b_dgl.ndata['node_types'] = b_node_types  #sn added to(cuda)
-    b_dgl.edata['edge_types'] = b_edge_types  #sn added to(cuda)
+    b_dgl.ndata['node_types'] = b_node_types.to('cuda')  #sn added to(cuda)
+    b_dgl.edata['edge_types'] = b_edge_types.to('cuda')  #sn added to(cuda)
     # print('build DGLGraphs: {}'.format(time.perf_counter() - t))
     # Encode the batch features into Tensors from their database values
     # t = time.perf_counter()
