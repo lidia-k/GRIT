@@ -35,7 +35,7 @@ with driver.session() as session:
 
         output = []
         batch_size = 32
-        for start_idx in (0, len(text_strings), batch_size):
+        for start_idx in range(0, len(text_strings), batch_size):
             end_idx = start_idx + batch_size 
             text_batch = text_strings[start_idx:end_idx]
 

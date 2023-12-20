@@ -212,12 +212,10 @@ def train_model(
         num_workers=0,
         find_lr=True):
     
-    train_data, val_data, _ = get_train_val_test_datasets( 
-        dataset_name=dataset_name,  
-        train_test_split=train_test_split, 
-        encoders=encoders,  
-        train_fraction_to_use=train_fraction_to_use
-    )
+    train_data, val_data, _ = get_train_val_test_datasets(dataset_name=dataset_name,
+                                                          train_test_split=train_test_split,
+                                                          encoders=encoders,  
+                                                          train_fraction_to_use=train_fraction_to_use)
     train_loader = get_dataloader(dataset=train_data,
                                   batch_size=batch_size,
                                   sampler_class_name=sampler_class_name,
@@ -238,6 +236,7 @@ def train_model(
 
     def init_model():
         model_class = models.__dict__[model_class_name]
+
         if isinstance(train_data, TabularDataset):
             assert issubclass(model_class, TabModelBase)
             model_kwargs.update(
@@ -251,17 +250,20 @@ def train_model(
             )
         else:
             raise ValueError
+        
         model = model_class( writer=writer, dataset_name=dataset_name, **model_kwargs )
         if load_model_weights_from:
             state_dict = torch.load(load_model_weights_from, map_location=torch.device('cpu'))
             retval = model.load_state_dict(state_dict['model'], strict=False)
             print(f'Missing modules:\n{pprint.pformat(retval.missing_keys)}')
             print(f'Unexpected modules:\n{pprint.pformat(retval.unexpected_keys)}')
+        
         model_to_device(model, device)
 
         # If debugging, add hooks to all modules
         if debug_network:
             register_module_hooks('model', model, writer)
+        
         return model
     # end inlined init_model()
 
@@ -295,42 +297,60 @@ def train_model(
             log_param_values(writer, model)
             if epoch % 20 == 0:
                 save_model_checkpoint(writer, epoch, model, optimizer, scheduler)
+            
             val_auroc, val_acc, val_loss = validate_model(writer, val_loader, model, epoch)
             best = False
             if val_auroc is not None and val_auroc > best_auroc:
                 best_auroc = val_auroc
                 save_model_checkpoint(writer, epoch, model, optimizer, scheduler, chkpt_name='best_auroc')
                 if early_stopping_metric == 'auroc': best = True
+            
             if val_acc is not None and val_acc > best_acc:
                 best_acc = val_acc
                 save_model_checkpoint(writer, epoch, model, optimizer, scheduler, chkpt_name='best_acc')
                 if early_stopping_metric == 'acc': best = True
+            
             if val_loss < best_loss:
                 best_loss = val_loss
                 save_model_checkpoint(writer, epoch, model, optimizer, scheduler, chkpt_name='best_loss')
                 if early_stopping_metric == 'loss': best = True
-            if early_stopping_metric    == 'auroc': m = val_auroc
-            elif early_stopping_metric  == 'acc'  : m = val_acc
-            elif early_stopping_metric  == 'loss' :  m = -1 * val_loss
-            if isinstance(scheduler, ReduceLROnPlateau): scheduler.step(m)
-            if best:                best_epoch = epoch
+            
+            if early_stopping_metric == 'auroc': 
+                m = val_auroc
+            elif early_stopping_metric == 'acc': 
+                m = val_acc
+            elif early_stopping_metric == 'loss':  
+                m = -1 * val_loss
+            
+            if isinstance(scheduler, ReduceLROnPlateau): 
+                scheduler.step(m)
+            if best:                
+                best_epoch = epoch
             if epoch - best_epoch >= early_stopping_patience:
                 Path(os.path.join(writer.log_dir, 'stopped_early.info')).touch()
                 break
+
             train_epoch(writer, train_loader, model, optimizer, scheduler, epoch, val_loader)  #a
             if hasattr(model, 'prune'):  model.prune(epoch, m)
+
         else:
             save_model_checkpoint(writer, epoch, model, optimizer, scheduler)
             validate_model(writer, val_loader, model, epoch)
             Path(os.path.join(writer.log_dir, 'finished_all_epochs.info')).touch()
-        writer.add_hparams( format_hparam_dict_for_tb(writer.train_kwargs)
-        ,  {'hparam/best_auroc': best_auroc, 'hparam/best_acc': best_acc
-        ,   'hparam/best_loss' : best_loss , 'hparam/best_epoch': best_epoch})
+        
+        writer.add_hparams(format_hparam_dict_for_tb(writer.train_kwargs),
+                           {'hparam/best_auroc': best_auroc, 
+                            'hparam/best_acc': best_acc,   
+                            'hparam/best_loss': best_loss,
+                            'hparam/best_epoch': best_epoch})
+        
     except Exception as e:
         Path(os.path.join(writer.log_dir, 'failed.info')).touch()
-        writer.add_hparams( format_hparam_dict_for_tb(writer.train_kwargs)
-        ,  {'hparam/best_auroc': best_auroc, 'hparam/best_acc': best_acc
-        ,   'hparam/best_loss': best_loss,   'hparam/best_epoch': best_epoch})
+        writer.add_hparams(format_hparam_dict_for_tb(writer.train_kwargs),
+                           {'hparam/best_auroc': best_auroc, 
+                            'hparam/best_acc': best_acc,   
+                            'hparam/best_loss': best_loss,
+                            'hparam/best_epoch': best_epoch})
         raise e
 
 
@@ -457,7 +477,6 @@ if __name__ == '__main__':
     kwargs = dict()
 
     #sn kwargs from experiments/GNN/GCN.py   
-    """
     kwargs = {
         'seed': 1234, 
         'debug_network': False, 
@@ -518,9 +537,10 @@ if __name__ == '__main__':
         'log_dir': 'kddcup2014/GCN/Nov20_09-05-08-586684/use_full_train', 
         'train_test_split': 'use_full_train'
     }  #sn adds
-    """
+
     timestamp = time.strftime("%Y%m%d-%H%M%S"); #sn added
 
+    """
     #sn added kwargs dictionary
     kwargs = {
         'seed': 1234, 
@@ -581,7 +601,8 @@ if __name__ == '__main__':
         'log_dir': 'GNN/kddcup2014/PoolMLP/' + timestamp + '/use_full_train', 
         'train_test_split': 'use_full_train' 
     }  #sn
-
+    """
+    
     kwargs['log_dir'] = os.getcwd() + '/runs/' + kwargs['dataset_name'] + '/' + kwargs['model_class_name']  #sn
     os.system( 'rm -r ' + kwargs['log_dir'] )  #sn
   else:
