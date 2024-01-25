@@ -36,6 +36,8 @@ class TabMLP(TabModelBase):
         """
         # t = time.perf_counter()
         cat_feats, cont_feats = input
+        if isinstance( cont_feats, torch.Tensor ):                  #sn
+            cont_feats = cont_feats.type( torch.cuda.FloatTensor ); #sn  otherwise error:  "expected scalar type Double but found Float"
         cat_feats = [init(cat_feats[:, i]) for i, init in enumerate(self.cat_initializers.values())]
         if cat_feats != []:
             cat_feats = torch.cat(cat_feats, dim=1)

@@ -1,3 +1,4 @@
+import pdb
 import json
 import os
 import subprocess
@@ -9,14 +10,14 @@ import featuretools as ft
 import networkx as nx
 import numpy as np
 import pandas as pd
-from featuretools.variable_types import Index, Id, Categorical, Numeric, Text, Datetime, Ordinal
+# from featuretools.variable_types import Index, Id, Categorical, Numeric, Text, Datetime, Ordinal
 from neo4j import GraphDatabase
 from sklearn.model_selection import train_test_split, KFold
 from tqdm import tqdm
 
 from __init__ import project_root, data_root
 from data.data_encoders import ScalarRobustScalerEnc, ScalarPowerTransformerEnc, ScalarQuantileTransformerEnc, \
-    ScalarQuantileOrdinalEnc, TextSummaryScalarEnc, TfidfEnc, TextEmbeddingsEnc
+    ScalarQuantileOrdinalEnc, TextSummaryScalarEnc, TfidfEnc
 
 
 def populate_db_info(db_name, db_info):
@@ -73,15 +74,15 @@ def populate_db_info(db_name, db_info):
                     def rec_val_generator(generator):
                         while True:
                             try:
-                                n = generator.__next__()
+                                n = generator.__next__() #sn was n = generator.__next__().value()
                                 yield n if n else ''
                             except StopIteration:
                                 return
 
                     query = 'MATCH (n:{0}) RETURN n.{1} ;'.format(node_type, feature_name)
                     print('running: {}'.format(query))
-
-                    text_strings = session.run(query).value().__iter__()
+                    abc = session.run(query).value()     #sn added this line
+                    text_strings = abc.__iter__()        #sn was: text_strings = session.run(query).records()
                     text_strings = pd.Series(rec_val_generator(text_strings))
 
                     enc = TextSummaryScalarEnc()
@@ -95,17 +96,10 @@ def populate_db_info(db_name, db_info):
                     vocabulary_ = {k: int(v) for k, v in tfidf.vocabulary_.items()}
                     feature_info['Tfidf_vocabulary_'] = vocabulary_
                     feature_info['Tfidf_idf_'] = tfidf.idf_.tolist()
-                    
-                    text_embedder = TextEmbeddingsEnc()
-                    embeddings_output = []
-                    batch_size = 32
-                    for start_idx in range(0, len(text_strings), batch_size):
-                        end_idx = start_idx + batch_size 
-                        text_batch = text_strings[start_idx:end_idx]
-                        embeddings = text_embedder.embed(text_batch.tolist())
-                        embeddings_output.extend(embeddings.tolist())
 
-                    feature_info['Text_embeddings_'] = embeddings_output
+                elif feature_info['type'] == 'VECTOR':  #sn added this elif code block
+                    #sn just hard code some garbage.  the real values will be taken from the database
+                    feature_info['vector'            ] = [1.2, 3.4] 
 
                 if '+++' in feature_name:
                     feature_name = feature_name.split('+++')[0]
@@ -131,13 +125,22 @@ def build_db_info(db_name, db_info, test_dp_query, train_dp_query):
     with open(db_info_path, 'w') as f:
         json.dump(db_info, f, indent=1, allow_nan=False)
 
-
+'''  #sn replaced with get_db_info(.. keeptext=T/F ) version
 def get_db_info(db_name):
     db_info_path = os.path.join(project_root, 'data', db_name, '{}.db_info.json'.format(db_name))
     with open(db_info_path, 'rb') as f:
         db_info = json.load(f)
     return db_info
 
+'''
+def get_db_info(db_name, keeptext=True):  #sn add keeptext argument
+    db_info_path = os.path.join(project_root, 'data', db_name, '{}.db_info.json'.format(db_name))
+    with open(db_info_path, 'rb') as f:
+        db_info = json.load(f)
+    if db_name == 'kddcup2014' and keeptext == False: #sn
+        for feature in ['essay','title','need_statement','short_description']: #sn
+            db_info['node_types_and_features']['Essay'].pop( feature )   #sn  remove Essay text data.  they've been vectorized.
+    return db_info
 
 def get_ds_info(ds_name):
     """
@@ -192,6 +195,8 @@ def create_datapoints_with_xargs(db_name, datapoint_ids, base_query, target_dir,
 
 
 def get_db_container(db_name):
+    #sn hard code the container because interacting w/ docker is tricky
+    return 'hard code container id here' #sn sebastian should be publicly humiliated for this
     """
     Grab the container id for this db's docker container, starting container if needed.
     If you can't connect, make sure the store_lock file is removed from the databases/ directory
@@ -287,34 +292,32 @@ def five_fold_split_iter(train_dp_ids):
     for train_idx, val_idx in kf.split(dp_ids):
         yield dp_ids[train_idx], dp_ids[val_idx]
 
-
+#c was un-prefixed Categorical, Numeric, Datetime, Text.  sn appends the 
+#  prefix "ft.variable_types.variable."
 def set_entity_variable_types(entity, node_type, db_info):
     """
     Sets a featuretools Entity's variable types to match the variable types in db_info[node_type]
     """
     for var_name, var_type in entity.variable_types.items():
-        if not var_type in [Index, Id]:
+        if not var_type.type_string in ['index', 'id']:  #sn was: if not var_type in [Index, Id]:
             feat_info = db_info['node_types_and_features'][node_type].get(var_name)
             if not feat_info:
                 print(f'make sure {node_type}.{var_name} is set in variable_types, or is an Id')
             else:
                 right_type = feat_info['type']
                 new_type = None
-                if right_type == 'CATEGORICAL':
-                    new_type = Categorical
-                elif right_type == 'SCALAR':
-                    new_type = Numeric
-                elif right_type == 'DATETIME':
-                    assert var_type == Datetime
-                elif right_type == 'TEXT':
-                    assert var_type == Text
-                else:
-                    raise ValueError
+                if right_type == 'CATEGORICAL': new_type = ft.variable_types.variable.Categorical      #c
+                elif right_type == 'SCALAR':    new_type = ft.variable_types.variable.Numeric          #c
+                elif right_type == 'DATETIME':  assert var_type == ft.variable_types.variable.Datetime #c
+                elif right_type == 'TEXT':      assert var_type == ft.variable_types.variable.Text     #c
+                else:                           raise ValueError
 
                 if new_type:
                     entity.convert_variable_type(var_name, new_type)
 
 
+#b was:  if feature.variable_type in [Categorical]:
+#b was:  elif feature.variable_type in [Numeric, Ordinal]: #b
 def set_dataframe_column_types(dfs_features, features):
     """
     Fixes the column types of the dataframe output by featuretools to match those of features
@@ -325,13 +328,11 @@ def set_dataframe_column_types(dfs_features, features):
         col = dfs_features[dfs_features.columns[i]]
         feature = features[i]
         assert col.name == feature._name
-        if feature.variable_type in [Categorical]:
-            dfs_features[col.name] = col.astype('object')
-        elif feature.variable_type in [Numeric, Ordinal]:
-            dfs_features[col.name] = col.astype('float64')
-        else:
-            raise TypeError
-
+        if   feature.variable_type.type_string in ['categorical']: #b #sn
+             dfs_features[col.name] = col.astype('object')
+        elif feature.variable_type.type_string in ['numeric', 'ordinal']: #b
+             dfs_features[col.name] = col.astype('float64')
+        else: raise TypeError
 
 def run_dfs(es, target_entity, agg_primitives, trans_primitives, ignore_variables, max_depth, n_jobs, chunk_size):
     dfs_object = ft.DeepFeatureSynthesis(target_entity_id=target_entity,
